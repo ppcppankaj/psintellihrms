@@ -7,7 +7,7 @@ docker compose exec backend python manage.py showmigrations
 docker compose exec backend celery -A config worker -l info
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/ppcppankaj/psintellihrms/main/assets/logo.png" alt="PS IntelliHR" width="180" />
+  <img src="https://raw.githubusercontent.com/ppcppankaj/psintellihrms/refs/heads/main/PSIntelli_HRMS.png?token=GHSAT0AAAAAADUQOHB3JKH4BWBDUGT3IJK62ME22KA" alt="PS IntelliHR" width="180" />
   
   <h1>PS IntelliHR Backend</h1>
   <p><b>Enterprise-grade, multi-tenant HRMS SaaS backend</b></p>
