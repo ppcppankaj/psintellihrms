@@ -1,182 +1,136 @@
-# PS IntelliHR Backend
-
-Enterprise-grade, multi-tenant HRMS SaaS backend
-
----
-
-## Overview
-
-PS IntelliHR Backend is the core server-side platform powering **PS IntelliHR**, an enterprise Human Resource Management System (HRMS) designed for scalability, security, and compliance.
-
-The backend is built using modern Django and cloud-native components, following **enterprise SaaS architecture principles**. It supports secure multi-tenant organizations, API-first design, asynchronous background processing, and real-time capabilities.
-
-The system is **production-ready** and architected with a **SOC 2 / ISO 27001 mindset**, making it suitable for enterprise, B2B SaaS, and regulated environments.
-
----
-
-## Key Capabilities
-
-- Django 4.2+ with fully custom user model  
-- Django REST Framework (API-first architecture)  
-- Organization-based multi-tenant SaaS design  
-- Strong tenant isolation and access enforcement  
-- JWT-based authentication  
-- Hardened production settings and secure secrets  
-- PostgreSQL 16 for relational data  
-- Redis for caching and message brokering  
-- Celery for background job processing  
-- Django Channels for real-time features  
-- OpenAPI / Swagger documentation via drf-spectacular  
-- Docker & Docker Compose support  
-- Cloud-ready, containerized deployment  
-
----
-
-## Technology Stack
-
-- **Backend:** Django, Django REST Framework  
-- **Database:** PostgreSQL 16  
-- **Cache / Broker:** Redis  
-- **Async Processing:** Celery  
-- **Realtime:** Django Channels  
-- **API Docs:** drf-spectacular  
-- **DevOps:** Docker, Docker Compose  
-
----
-
-## System Architecture
-
-### High-Level Architecture Diagram
-
-┌────────────────────┐
-│ Client Apps │
-│ (Web / Mobile) │
-└─────────┬──────────┘
-│ HTTPS / JSON (REST, WebSocket)
-▼
-┌─────────────────────────────┐
-│ API Gateway │
-│ Django + DRF (JWT Auth) │
-└─────────┬──────────┬────────┘
-│ │
-│ │ WebSocket
-│ ▼
-│ ┌──────────────────────┐
-│ │ Django Channels │
-│ │ (Realtime Layer) │
-│ └─────────┬────────────┘
-│ │
-▼ ▼
-┌─────────────────────────────┐
-│ Application Layer │
-│ Multi-Tenant Business │
-│ Logic & RBAC Enforcement │
-└─────────┬──────────┬────────┘
-│ │
-│ │ Async Tasks
-▼ ▼
-┌────────────────┐ ┌───────────────────┐
-│ PostgreSQL 16 │ │ Celery Workers │
-│ (Primary DB) │ │ Background Jobs │
-└────────────────┘ └─────────┬─────────┘
-│
-▼
-┌────────────────┐
-│ Redis │
-│ Cache / Broker │
-└────────────────┘
-
-
----
-
-## Architecture Principles
-
-- **Multi-Tenancy:**  
-  Every request is scoped to an organization with strict tenant isolation.
-
-- **API-First Design:**  
-  Backend serves versioned REST APIs, enabling multiple frontend clients.
-
-- **Asynchronous Processing:**  
-  Long-running tasks (emails, reports, notifications) handled by Celery.
-
-- **Real-Time Capabilities:**  
-  WebSocket support via Django Channels for live updates and notifications.
-
-- **Security by Design:**  
-  JWT authentication, hardened settings, and environment-based secrets.
-
-- **Scalability:**  
-  Stateless backend services with horizontally scalable workers.
-
----
-
-## Quick Start (Local Development)
-
-### Clone the repository
-```sh
-git clone git@github.com:ppcppankaj/psintellihrms.git
-cd psintellihrms/backend
-
-cp .env.production.example .env
-
 docker compose up --build -d
-
-
 docker compose exec backend python manage.py makemigrations
 docker compose exec backend python manage.py migrate
-
 docker compose exec backend python manage.py createsuperuser
-
-
-Access API documentation
-
-Swagger UI: http://localhost:8001/api/docs/
-
-ReDoc: http://localhost:8001/api/redoc/
-
-Production Readiness
-
-This backend has undergone a structured production audit covering:
-
-Secure configuration and secrets management
-
-Multi-tenant enforcement and data isolation
-
-Authentication and authorization boundaries
-
-Background job reliability and retries
-
-Deployment hardening and operational readiness
-
-Refer to PRODUCTION_READINESS_REPORT.md for full audit details and remediation status.
-
-Common Development Commands
-
-Run test suite:
-
 docker compose exec backend pytest
-
-
-Inspect migrations:
-
 docker compose exec backend python manage.py showmigrations
-
-
-Run Celery worker:
-
 docker compose exec backend celery -A config worker -l info
 
-License & Ownership
+<div align="center">
+  <img src="https://raw.githubusercontent.com/ppcppankaj/psintellihrms/main/assets/logo.png" alt="PS IntelliHR" width="180" />
+  
+  <h1>PS IntelliHR Backend</h1>
+  <p><b>Enterprise-grade, multi-tenant HRMS SaaS backend</b></p>
+  <p>
+    <a href="https://www.djangoproject.com/" target="_blank"><img src="https://img.shields.io/badge/Django-4.2%2B-green" alt="Django"></a>
+    <a href="https://www.postgresql.org/" target="_blank"><img src="https://img.shields.io/badge/PostgreSQL-16-blue" alt="PostgreSQL"></a>
+    <a href="https://www.docker.com/" target="_blank"><img src="https://img.shields.io/badge/Docker-ready-blue" alt="Docker"></a>
+    <a href="https://github.com/ppcppankaj/psintellihrms/actions" target="_blank"><img src="https://img.shields.io/github/workflow/status/ppcppankaj/psintellihrms/CI?label=build" alt="Build Status"></a>
+  </p>
+</div>
+
+
+## 🚀 Overview
+
+PS IntelliHR Backend powers the core of the **PS IntelliHR** platform, delivering secure, scalable, and compliant HRMS for multi-tenant organizations. Built with Django, DRF, PostgreSQL, Redis, Celery, and Channels, it is production-audited and ready for enterprise deployment.
+
+---
+
+## 🛠️ Features
+
+- Multi-tenant, organization-based SaaS
+- Custom user model & JWT authentication
+- Strong tenant isolation & RBAC/ABAC enforcement
+- PostgreSQL 16, Redis, Celery, Channels
+- OpenAPI/Swagger docs via drf-spectacular
+- Docker & docker-compose support
+- Hardened for SOC2/ISO production
+
+---
+
+## 📦 Technology Stack
+
+| Layer         | Technology                |
+|--------------|---------------------------|
+| Backend      | Django, DRF               |
+| Database     | PostgreSQL 16             |
+| Cache/Broker | Redis                     |
+| Async        | Celery                    |
+| Realtime     | Django Channels           |
+| API Docs     | drf-spectacular           |
+| DevOps       | Docker, Docker Compose    |
+
+---
+
+## 🏗️ Architecture
+
+<details>
+<summary>High-Level Diagram</summary>
+
+```
+Client Apps (Web/Mobile)
+        │
+  HTTPS/REST/WebSocket
+        ▼
+API Gateway (Django + DRF)
+        │
+        ▼
+Application Layer (Multi-Tenant Logic)
+        │
+        ▼
+PostgreSQL 16 ── Celery Workers
+        │           │
+        └───── Redis (Cache/Broker)
+```
+</details>
+
+---
+
+## ⚡ Quick Start
+
+```sh
+# Clone & setup
+git clone git@github.com:ppcppankaj/psintellihrms.git
+cd psintellihrms/backend
+cp .env.production.example .env
+
+# Build & run
+docker compose up --build -d
+
+# Migrate & create superuser
+docker compose exec backend python manage.py makemigrations
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py createsuperuser
+
+# Access API docs
+# Swagger: http://localhost:8001/api/docs/
+# ReDoc:   http://localhost:8001/api/redoc/
+```
+
+---
+
+## 🏆 Production Readiness
+
+- Full audit: see `PRODUCTION_READINESS_REPORT.md`
+- Secure config, secrets, and multi-tenancy
+- Background job reliability and retry
+- Deployment hardening and operational readiness
+
+---
+
+## 🧑‍💻 Common Commands
+
+```sh
+# Run tests
+docker compose exec backend pytest
+
+# Show migrations
+docker compose exec backend python manage.py showmigrations
+
+# Run Celery worker
+docker compose exec backend celery -A config worker -l info
+```
+
+---
+
+## 📄 License & Contact
 
 This project is proprietary software.
 
 For licensing, commercial usage, or enterprise inquiries, contact:
 
-Pankaj Sharma
-https://pankaj.im
+**Pankaj Sharma**  
+[https://pankaj.im](https://pankaj.im)
 
 © PS IntelliHR. All rights reserved.
-
-
----
+ReDoc: http://localhost:8001/api/redoc/
