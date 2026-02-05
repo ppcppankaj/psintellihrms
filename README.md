@@ -77,3 +77,4 @@ This is the backend for PS IntelliHR, a multi-tenant HRMS platform built with Dj
 
 ## License
 Contact project owner for licensing details.
+- Pankaj Sharma: `https://pankaj.im`
