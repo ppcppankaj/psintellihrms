@@ -1,0 +1,508 @@
+﻿python : WARNING 
+2026-01-29 13:28:54,374 
+models 14104 10060 No 
+organization context set 
+- returning unfiltered 
+queryset
+At line:1 char:1
++ python 
+backend\manage.py 
+diagnose > 
+diagnose_full.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (W  
+  ARNING 2026-01...lter   
+ ed queryset:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+WARNING 2026-01-29 
+13:28:54,376 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,378 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,378 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,378 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,378 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,378 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,381 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,381 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,381 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,381 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,381 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,381 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,397 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,397 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,397 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,397 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,397 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,412 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,412 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,412 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,412 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,412 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,426 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,426 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,426 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,426 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,426 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,429 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,429 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,436 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,436 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,436 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,436 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,436 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,453 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,453 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,453 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,454 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,454 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,455 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,455 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,455 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,456 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,456 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,456 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,471 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,475 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,475 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,475 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,479 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,488 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,488 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,497 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,497 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,497 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,502 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,502 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,504 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,510 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,510 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,510 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,540 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,540 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,540 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,542 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,542 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,551 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,551 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,553 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,553 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,560 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,561 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:28:54,561 models 14104 
+10060 No organization 
+context set - returning 
+unfiltered queryset
+======================================================================
+SYSTEM DIAGNOSTICS
+======================================================================
+
+Traceback (most recent 
+call last):
+  File "C:\Users\ruchi\ppc
+p\hrms\backend\manage.py",
+ line 22, in <module>
+    main()
+  File "C:\Users\ruchi\ppc
+p\hrms\backend\manage.py",
+ line 18, in main
+    execute_from_command_l
+ine(sys.argv)
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\django\core\management\
+__init__.py", line 442, 
+in 
+execute_from_command_line
+    utility.execute()
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\django\core\management\
+__init__.py", line 436, 
+in execute
+    self.fetch_command(sub
+command).run_from_argv(sel
+f.argv)
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\django\core\management\
+base.py", line 412, in 
+run_from_argv
+    self.execute(*args, 
+**cmd_options)
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\django\core\management\
+base.py", line 458, in 
+execute
+    output = 
+self.handle(*args, 
+**options)
+             ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
+  File "C:\Users\ruchi\ppc
+p\hrms\backend\apps\core\m
+anagement\commands\diagnos
+e.py", line 39, in handle
+    result = check()
+             ^^^^^^^
+  File "C:\Users\ruchi\ppc
+p\hrms\backend\apps\core\m
+anagement\commands\diagnos
+e.py", line 67, in 
+_check_database
+    
+self.stdout.write("\u2192 
+Checking database 
+connection...")
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\django\core\management\
+base.py", line 180, in 
+write
+    self._out.write(style_
+func(msg))
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\colorama\ansitowin32.py
+", line 47, in write
+    self.__convertor.write
+(text)
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\colorama\ansitowin32.py
+", line 177, in write
+    self.write_and_convert
+(text)
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\colorama\ansitowin32.py
+", line 205, in 
+write_and_convert
+    self.write_plain_text(
+text, cursor, len(text))
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\site-packag
+es\colorama\ansitowin32.py
+", line 210, in 
+write_plain_text
+    self.wrapped.write(tex
+t[start:end])
+  File "C:\Users\ruchi\App
+Data\Local\Programs\Python
+\Python312\Lib\encodings\c
+p1252.py", line 19, in 
+encode
+    return codecs.charmap_
+encode(input,self.errors,e
+ncoding_table)[0]
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
+UnicodeEncodeError: 
+'charmap' codec can't 
+encode character '\u2192' 
+in position 0: character 
+maps to <undefined>

@@ -1,0 +1,407 @@
+﻿python : WARNING 
+2026-01-29 13:31:17,397 
+models 16968 4876 No 
+organization context set 
+- returning unfiltered 
+queryset
+At line:1 char:1
++ python 
+backend\manage.py 
+diagnose > 
+diagnose_final.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (W  
+  ARNING 2026-01...lter   
+ ed queryset:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+WARNING 2026-01-29 
+13:31:17,397 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,397 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,397 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,397 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,399 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,399 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,399 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,400 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,400 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,401 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,401 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,401 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,412 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,418 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,418 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,418 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,418 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,428 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,429 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,429 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,429 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,429 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,438 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,438 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,438 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,438 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,438 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,438 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,438 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,455 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,455 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,455 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,455 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,455 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,466 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,466 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,466 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,466 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,466 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,468 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,468 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,468 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,468 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,468 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,468 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,479 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,479 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,479 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,479 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,490 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,497 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,497 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,506 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,506 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,506 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,510 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,510 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,510 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,510 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,510 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,510 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,544 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,544 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,544 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,545 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,545 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,554 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,555 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,555 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,555 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,562 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,562 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+WARNING 2026-01-29 
+13:31:17,562 models 16968 
+4876 No organization 
+context set - returning 
+unfiltered queryset
+======================================================================
+SYSTEM DIAGNOSTICS
+======================================================================
+
+> Checking database connection...
+  [FAIL] Database connection failed: connection to server at "localhost" (::1), port 5432 failed: FATAL:  password authentication failed for user "hrms_admin"
+> Checking migrations...
+  [FAIL] Migration check failed: connection to server at "localhost" (::1), port 5432 failed: FATAL:  password authentication failed for user "hrms_admin"
+> Checking organizations...
+  [FAIL] Organization check failed: connection to server at "localhost" (::1), port 5432 failed: FATAL:  password authentication failed for user "hrms_admin"
+> Checking superuser...
+  [WARN] Superuser check failed: connection to server at "localhost" (::1), port 5432 failed: FATAL:  password authentication failed for user "hrms_admin"
+> Checking Redis...
+  [OK] Redis connected
+
+======================================================================
+[FAIL] DIAGNOSTICS FAILED: 3 checks failed, 1 warnings
+======================================================================
+
