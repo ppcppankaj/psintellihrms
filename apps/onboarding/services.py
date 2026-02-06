@@ -20,6 +20,7 @@ class OnboardingService:
         """
         # Try exact match: department + designation
         template = OnboardingTemplate.objects.filter(
+            organization=employee.organization,
             department=employee.department,
             designation=employee.designation,
             is_active=True
@@ -30,6 +31,7 @@ class OnboardingService:
         
         # Try department only
         template = OnboardingTemplate.objects.filter(
+            organization=employee.organization,
             department=employee.department,
             designation__isnull=True,
             is_active=True
@@ -40,6 +42,7 @@ class OnboardingService:
         
         # Try designation only
         template = OnboardingTemplate.objects.filter(
+            organization=employee.organization,
             department__isnull=True,
             designation=employee.designation,
             is_active=True
@@ -50,6 +53,7 @@ class OnboardingService:
         
         # Fall back to default
         return OnboardingTemplate.objects.filter(
+            organization=employee.organization,
             is_default=True,
             is_active=True
         ).first()

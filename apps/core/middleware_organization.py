@@ -76,6 +76,16 @@ class OrganizationMiddleware(MiddlewareMixin):
             # Initialize organization to None (REQUIRED for subsequent middleware)
             request.organization = None
             
+            # Skip organization enforcement during management commands
+            import sys
+            COMMANDS_TO_SKIP = [
+                'migrate', 'makemigrations', 'shell', 'createsuperuser',
+                'collectstatic', 'check', 'loaddata', 'dumpdata', 'test'
+            ]
+            if len(sys.argv) > 1 and sys.argv[1] in COMMANDS_TO_SKIP:
+                logger.info(f"TRACE: OrganizationMiddleware skipping for management command: {sys.argv[1]}")
+                return None
+
             # Check if path is public
             if any(request.path.startswith(path) for path in self.PUBLIC_PATHS):
                 logger.info("TRACE: OrganizationMiddleware skipping public path")

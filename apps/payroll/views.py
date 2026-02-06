@@ -52,7 +52,7 @@ class EmployeeCompensationViewSet(BranchFilterMixin, OrganizationViewSetMixin, v
     Manages Employee Salary Structures.
     Branch-scoped through employee relationship.
     """
-    queryset = EmployeeSalary.objects.select_related('employee', 'employee__user').all()
+    queryset = EmployeeSalary.objects.none()
     serializer_class = EmployeeSalarySerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -60,7 +60,12 @@ class EmployeeCompensationViewSet(BranchFilterMixin, OrganizationViewSetMixin, v
     
     def get_queryset(self):
         """Filter by user's accessible branches"""
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('employee', 'employee__user')
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         
         if branch_ids is None:
@@ -153,7 +158,7 @@ class PayrollRunViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Mo
     Payroll run management.
     Branch-scoped - each payroll run belongs to a branch.
     """
-    queryset = PayrollRun.objects.all()
+    queryset = PayrollRun.objects.none()
     serializer_class = PayrollRunSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -162,6 +167,11 @@ class PayrollRunViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Mo
     def get_queryset(self):
         """Filter by user's accessible branches"""
         queryset = super().get_queryset()
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         
         if branch_ids is None:
@@ -356,7 +366,7 @@ class PayslipViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ReadO
     Payslip viewing.
     Branch-scoped through employee relationship.
     """
-    queryset = Payslip.objects.all()
+    queryset = Payslip.objects.none()
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend]
     filterset_fields = ['payroll_run', 'employee']
@@ -364,6 +374,11 @@ class PayslipViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ReadO
     def get_queryset(self):
         """Filter by user's accessible branches"""
         queryset = super().get_queryset()
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         
         if branch_ids is None:
@@ -392,7 +407,8 @@ class PayslipViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ReadO
         
         latest_payslip = self.get_queryset().filter(
             employee=employee,
-            payroll_run__status='paid'
+            payroll_run__status='paid',
+            organization=getattr(request, 'organization', None)
         ).order_by('-payroll_run__year', '-payroll_run__month').first()
         
         current_net = latest_payslip.net_salary if latest_payslip else 0
@@ -408,7 +424,8 @@ class PayslipViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ReadO
         
         ytd_stats = self.get_queryset().filter(
             employee=employee,
-            payroll_run__status='paid'
+            payroll_run__status='paid',
+            organization=getattr(request, 'organization', None)
         ).filter(
             Q(payroll_run__year=fy_start_year, payroll_run__month__gte=4) | 
             Q(payroll_run__year=fy_start_year + 1, payroll_run__month__lte=3)
@@ -490,7 +507,7 @@ class TaxDeclarationViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewset
     Tax declaration management.
     Branch-scoped through employee relationship.
     """
-    queryset = TaxDeclaration.objects.all()
+    queryset = TaxDeclaration.objects.none()
     serializer_class = TaxDeclarationSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -500,6 +517,11 @@ class TaxDeclarationViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewset
     def get_queryset(self):
         """Filter by user's accessible branches"""
         queryset = super().get_queryset()
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         
         if branch_ids is None:
@@ -516,7 +538,7 @@ class ReimbursementClaimViewSet(BranchFilterMixin, OrganizationViewSetMixin, vie
     Reimbursement claim management.
     Branch-scoped through employee relationship.
     """
-    queryset = ReimbursementClaim.objects.select_related('employee', 'employee__user').all()
+    queryset = ReimbursementClaim.objects.none()
     serializer_class = ReimbursementClaimSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -525,7 +547,12 @@ class ReimbursementClaimViewSet(BranchFilterMixin, OrganizationViewSetMixin, vie
     
     def get_queryset(self):
         """Filter by user's accessible branches"""
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('employee', 'employee__user')
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         
         if branch_ids is None:
@@ -588,7 +615,10 @@ class ReimbursementClaimViewSet(BranchFilterMixin, OrganizationViewSetMixin, vie
         if not hasattr(request.user, 'employee'):
             return Response({"error": "No employee profile found"}, status=404)
         
-        claims = ReimbursementClaim.objects.filter(employee=request.user.employee)
+        claims = ReimbursementClaim.objects.filter(
+            employee=request.user.employee,
+            organization=getattr(request, 'organization', None)
+        )
         serializer = ReimbursementClaimListSerializer(claims, many=True)
         return Response(serializer.data)
 
@@ -598,7 +628,7 @@ class SalaryRevisionViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewset
     Salary revision history.
     Shows all salary structures (active and historical) for employees.
     """
-    queryset = EmployeeSalary.objects.select_related('employee', 'employee__user').all()
+    queryset = EmployeeSalary.objects.none()
     serializer_class = SalaryRevisionSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -606,7 +636,10 @@ class SalaryRevisionViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewset
     search_fields = ['employee__employee_id', 'employee__user__full_name']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('employee', 'employee__user')
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
         branch_ids = self.get_branch_ids()
         
         if branch_ids is None:
@@ -630,7 +663,7 @@ class LoanViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ModelVie
     Employee loan management.
     Includes CRUD + disburse/repay actions.
     """
-    queryset = EmployeeLoan.objects.select_related('employee', 'employee__user').all()
+    queryset = EmployeeLoan.objects.none()
     serializer_class = EmployeeLoanSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -638,7 +671,12 @@ class LoanViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ModelVie
     search_fields = ['employee__employee_id', 'employee__user__full_name']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('employee', 'employee__user')
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         
         if branch_ids is None:
@@ -752,6 +790,9 @@ class LoanViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ModelVie
         if not hasattr(request.user, 'employee'):
             return Response({"error": "No employee profile found"}, status=404)
         
-        loans = EmployeeLoan.objects.filter(employee=request.user.employee)
+        loans = EmployeeLoan.objects.filter(
+            employee=request.user.employee,
+            organization=getattr(request, 'organization', None)
+        )
         serializer = EmployeeLoanListSerializer(loans, many=True)
         return Response(serializer.data)

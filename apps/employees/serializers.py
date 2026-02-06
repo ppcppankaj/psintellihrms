@@ -98,11 +98,27 @@ class EmployeeAddressSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['employee'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+
 class EmployeeBankAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeBankAccount
         fields = '__all__'
         read_only_fields = ['id']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['employee'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
 
 class EmergencyContactSerializer(serializers.ModelSerializer):
     class Meta:
@@ -110,11 +126,27 @@ class EmergencyContactSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['employee'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+
 class EmployeeDependentSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeDependent
         fields = '__all__'
         read_only_fields = ['id']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['employee'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
 
 class EmploymentHistorySerializer(serializers.ModelSerializer):
     previous_department_name = serializers.CharField(source='previous_department.name', read_only=True)
@@ -135,6 +167,17 @@ class DocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'file_size', 'file_type']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['employee'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+            self.fields['verified_by'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+
     def get_file_url(self, obj):
         if obj.file:
             request = self.context.get('request')
@@ -152,6 +195,17 @@ class CertificationSerializer(serializers.ModelSerializer):
         model = Certification
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'verified_by', 'verified_at']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['employee'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+            self.fields['verified_by'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
 
     def get_certificate_file_url(self, obj):
         if obj.certificate_file:
@@ -184,12 +238,17 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = [
-            'department', 'designation', 'location', 'reporting_manager', 
-            'employment_type', 'employment_status', 'date_of_joining',
-            'email', 'first_name', 'last_name', 'phone', 'password', 'role_ids',
-            'gender', 'date_of_birth', 'marital_status', 'blood_group',
             'employee_id', 'skills', 'bank_account', 'salary_structure'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['department'].queryset = Department.objects.filter(organization=request.organization)
+            self.fields['designation'].queryset = Designation.objects.filter(organization=request.organization)
+            self.fields['location'].queryset = Location.objects.filter(organization=request.organization)
+            self.fields['reporting_manager'].queryset = Employee.objects.filter(organization=request.organization)
 
 class EmployeeUpdateSerializer(serializers.ModelSerializer):
     role_ids = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
@@ -204,12 +263,17 @@ class EmployeeUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = [
-            'department', 'designation', 'location', 'reporting_manager', 
-            'employment_type', 'employment_status', 'date_of_joining',
-            'gender', 'date_of_birth', 'marital_status', 'blood_group',
-            'first_name', 'last_name', 'role_ids', 'is_active',
             'skills', 'bank_account', 'salary_structure'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['department'].queryset = Department.objects.filter(organization=request.organization)
+            self.fields['designation'].queryset = Designation.objects.filter(organization=request.organization)
+            self.fields['location'].queryset = Location.objects.filter(organization=request.organization)
+            self.fields['reporting_manager'].queryset = Employee.objects.filter(organization=request.organization)
 
 class EmployeeDetailSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
@@ -273,10 +337,10 @@ class DesignationBulkImportSerializer(serializers.Serializer):
 
 class EmployeeTransferSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.full_name', read_only=True)
-    from_department = serializers.PrimaryKeyRelatedField(source='department', queryset=Department.objects.all(), required=False, allow_null=True)
+    from_department = serializers.PrimaryKeyRelatedField(source='department', queryset=Department.objects.none(), required=False, allow_null=True)
     from_department_name = serializers.CharField(source='department.name', read_only=True)
     to_department_name = serializers.CharField(source='to_department.name', read_only=True)
-    from_location = serializers.PrimaryKeyRelatedField(source='location', queryset=Location.objects.all(), required=False, allow_null=True)
+    from_location = serializers.PrimaryKeyRelatedField(source='location', queryset=Location.objects.none(), required=False, allow_null=True)
     from_location_name = serializers.CharField(source='location.name', read_only=True)
     to_location_name = serializers.CharField(source='to_location.name', read_only=True)
     from_manager = serializers.PrimaryKeyRelatedField(source='employee.reporting_manager', read_only=True)
@@ -285,6 +349,16 @@ class EmployeeTransferSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     transfer_type_display = serializers.CharField(source='get_transfer_type_display', read_only=True)
     remarks = serializers.CharField(source='reason', required=False, allow_blank=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['from_department'].queryset = Department.objects.none()
+        self.fields['from_location'].queryset = Location.objects.none()
+        
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['from_department'].queryset = Department.objects.filter(organization=request.organization)
+            self.fields['from_location'].queryset = Location.objects.filter(organization=request.organization)
 
     class Meta:
         model = EmployeeTransfer
@@ -330,6 +404,13 @@ class EmployeeTransferSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['from_department'].queryset = Department.objects.filter(organization=request.organization)
+            self.fields['from_location'].queryset = Location.objects.filter(organization=request.organization)
 
     def validate_employee(self, employee):
         request = self.context['request']

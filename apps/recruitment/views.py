@@ -19,6 +19,7 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.core.permissions_branch import BranchFilterBackend, BranchPermission
+from apps.core.tenant_guards import OrganizationViewSetMixin
 
 from .models import JobPosting, Candidate, JobApplication, Interview, OfferLetter
 from .serializers import (
@@ -41,12 +42,12 @@ class BranchFilterMixin:
         ).values_list('branch_id', flat=True))
 
 
-class JobPostingViewSet(BranchFilterMixin, viewsets.ModelViewSet):
+class JobPostingViewSet(OrganizationViewSetMixin, BranchFilterMixin, viewsets.ModelViewSet):
     """
     ViewSet for job postings.
     Filtered by user's accessible branches.
     """
-    queryset = JobPosting.objects.all()
+    queryset = JobPosting.objects.none()
     serializer_class = JobPostingSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -149,12 +150,12 @@ class JobPostingViewSet(BranchFilterMixin, viewsets.ModelViewSet):
         })
 
 
-class CandidateViewSet(BranchFilterMixin, viewsets.ModelViewSet):
+class CandidateViewSet(OrganizationViewSetMixin, BranchFilterMixin, viewsets.ModelViewSet):
     """
     ViewSet for candidates.
     Candidates are filtered based on their applications to jobs in user's branches.
     """
-    queryset = Candidate.objects.all()
+    queryset = Candidate.objects.none()
     serializer_class = CandidateSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -173,12 +174,12 @@ class CandidateViewSet(BranchFilterMixin, viewsets.ModelViewSet):
         ).distinct()
 
 
-class JobApplicationViewSet(BranchFilterMixin, viewsets.ModelViewSet):
+class JobApplicationViewSet(OrganizationViewSetMixin, BranchFilterMixin, viewsets.ModelViewSet):
     """
     ViewSet for job applications.
     Filtered by job posting's branch via department.
     """
-    queryset = JobApplication.objects.all()
+    queryset = JobApplication.objects.none()
     serializer_class = JobApplicationSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend]
@@ -275,12 +276,12 @@ class JobApplicationViewSet(BranchFilterMixin, viewsets.ModelViewSet):
         }, status=status.HTTP_201_CREATED)
 
 
-class InterviewViewSet(BranchFilterMixin, viewsets.ModelViewSet):
+class InterviewViewSet(OrganizationViewSetMixin, BranchFilterMixin, viewsets.ModelViewSet):
     """
     ViewSet for interviews.
     Filtered by application's job's branch.
     """
-    queryset = Interview.objects.all()
+    queryset = Interview.objects.none()
     serializer_class = InterviewSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend]
@@ -384,12 +385,12 @@ class InterviewViewSet(BranchFilterMixin, viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class OfferLetterViewSet(BranchFilterMixin, viewsets.ModelViewSet):
+class OfferLetterViewSet(OrganizationViewSetMixin, BranchFilterMixin, viewsets.ModelViewSet):
     """
     ViewSet for offer letters.
     Contains sensitive compensation data - must be branch-filtered.
     """
-    queryset = OfferLetter.objects.all()
+    queryset = OfferLetter.objects.none()
     serializer_class = OfferLetterSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend]

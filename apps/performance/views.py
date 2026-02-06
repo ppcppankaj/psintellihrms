@@ -28,8 +28,15 @@ class PerformanceCycleViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     Performance Cycles - Organization-scoped (no branch filtering)
     Cycles are shared across all branches in an organization
     """
-    queryset = PerformanceCycle.objects.all()
+    queryset = PerformanceCycle.objects.none()
     serializer_class = PerformanceCycleSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['status', 'year']
@@ -64,7 +71,7 @@ class OKRObjectiveViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, vie
     """
     OKR Objectives - Branch-filtered via employee relationship
     """
-    queryset = OKRObjective.objects.select_related('employee', 'cycle').all()
+    queryset = OKRObjective.objects.none()
     serializer_class = OKRObjectiveSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, filters.SearchFilter]
@@ -74,7 +81,13 @@ class OKRObjectiveViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, vie
 
     def get_queryset(self):
         """Filter by employee's branch"""
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('employee', 'cycle')
+        
+        # Organization filter
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         if not self.request.user.is_superuser:
             # Filter through employee's branch
             queryset = queryset.filter(
@@ -133,7 +146,7 @@ class KeyResultViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """
     Key Results - Branch-filtered via objective's employee
     """
-    queryset = KeyResult.objects.select_related('objective', 'objective__employee').all()
+    queryset = KeyResult.objects.none()
     serializer_class = KeyResultSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [DjangoFilterBackend]
@@ -141,7 +154,12 @@ class KeyResultViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter by employee's branch through objective"""
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('objective', 'objective__employee')
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         if not self.request.user.is_superuser:
             from apps.authentication.models_hierarchy import BranchUser
             branch_ids = BranchUser.objects.filter(
@@ -169,7 +187,7 @@ class PerformanceReviewViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
     """
     Performance Reviews - Branch-filtered via employee
     """
-    queryset = PerformanceReview.objects.select_related('employee', 'cycle').all()
+    queryset = PerformanceReview.objects.none()
     serializer_class = PerformanceReviewSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend]
@@ -253,18 +271,32 @@ class PerformanceReviewViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
 
 class ReviewFeedbackViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Review Feedback - 360 degree feedback"""
-    queryset = ReviewFeedback.objects.all()
+    queryset = ReviewFeedback.objects.none()
     serializer_class = ReviewFeedbackSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
 
 class KeyResultAreaViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """
     Key Result Areas - Organization-scoped templates
     """
-    queryset = KeyResultArea.objects.all()
+    queryset = KeyResultArea.objects.none()
     serializer_class = KeyResultAreaSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['designation', 'department', 'is_active']
     search_fields = ['name', 'code']
@@ -274,7 +306,7 @@ class EmployeeKRAViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, view
     """
     Employee KRAs - Branch-filtered via employee
     """
-    queryset = EmployeeKRA.objects.select_related('employee', 'cycle', 'kra').all()
+    queryset = EmployeeKRA.objects.none()
     serializer_class = EmployeeKRASerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend]
@@ -349,8 +381,15 @@ class EmployeeKRAViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, view
         return Response({'error': 'Rating required'}, status=status.HTTP_400_BAD_REQUEST)
 
 class KPIViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
-    queryset = KPI.objects.all()
+    queryset = KPI.objects.none()
     serializer_class = KPISerializer
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['employee', 'employee_kra', 'is_achieved']
     search_fields = ['name']
@@ -363,15 +402,29 @@ class KPIViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.Mod
         return Response(serializer.data)
 
 class CompetencyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
-    queryset = Competency.objects.all()
+    queryset = Competency.objects.none()
     serializer_class = CompetencySerializer
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['category', 'is_active']
     search_fields = ['name', 'code']
 
 class EmployeeCompetencyViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
-    queryset = EmployeeCompetency.objects.all()
+    queryset = EmployeeCompetency.objects.none()
     serializer_class = EmployeeCompetencySerializer
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['employee', 'cycle', 'competency']
     scope_field = 'employee'
@@ -386,8 +439,15 @@ class EmployeeCompetencyViewSet(OrganizationViewSetMixin, FilterByPermissionMixi
         return Response(serializer.data)
 
 class TrainingRecommendationViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
-    queryset = TrainingRecommendation.objects.all()
+    queryset = TrainingRecommendation.objects.none()
     serializer_class = TrainingRecommendationSerializer
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['employee', 'cycle', 'priority', 'is_completed']
     scope_field = 'employee'

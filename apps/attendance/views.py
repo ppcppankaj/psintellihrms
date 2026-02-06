@@ -61,8 +61,15 @@ from .services import AttendanceService
 class ShiftViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Shift management"""
     
-    queryset = Shift.objects.filter(is_active=True)
+    queryset = Shift.objects.none()
     serializer_class = ShiftSerializer
+
+    def get_queryset(self):
+        queryset = Shift.objects.filter(is_active=True)
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     permission_classes = [IsAuthenticated, HasPermission, BranchPermission]
     filter_backends = [BranchFilterBackend]
     
@@ -79,8 +86,15 @@ class ShiftViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.Mod
 class GeoFenceViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Geo-fence management"""
     
-    queryset = GeoFence.objects.filter(is_active=True).select_related('location')
+    queryset = GeoFence.objects.none()
     serializer_class = GeoFenceSerializer
+
+    def get_queryset(self):
+        queryset = GeoFence.objects.filter(is_active=True).select_related('location')
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
     permission_classes = [IsAuthenticated, HasPermission, BranchPermission]
     filter_backends = [BranchFilterBackend]
     
@@ -125,9 +139,7 @@ class BranchFilterMixin:
 class AttendanceViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Attendance management with punch-in/out. Branch-filtered."""
     
-    queryset = AttendanceRecord.objects.select_related(
-        'employee', 'employee__user', 'approved_by'
-    ).prefetch_related('punches')
+    queryset = AttendanceRecord.objects.none()
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend]
     filterset_fields = ['employee', 'date', 'status', 'is_flagged']
@@ -148,7 +160,14 @@ class AttendanceViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Mo
         return request._employee
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = AttendanceRecord.objects.select_related(
+            'employee', 'employee__user', 'approved_by'
+        ).prefetch_related('punches')
+        
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         user = self.request.user
         
         # Branch filtering - ensure records are within user's accessible branches
@@ -744,10 +763,17 @@ class AttendanceViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Mo
 class AttendancePunchViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for individual punch logs"""
     
-    queryset = AttendancePunch.objects.select_related(
-        'employee', 'employee__user', 'attendance', 'geo_fence'
-    ).order_by('-punch_time')
+    queryset = AttendancePunch.objects.none()
     serializer_class = AttendancePunchSerializer
+    
+    def get_queryset(self):
+        queryset = AttendancePunch.objects.select_related(
+            'employee', 'employee__user', 'attendance', 'geo_fence'
+        ).all() # No order_by here to be consistent, but can keep if needed
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset.order_by('-punch_time')
     permission_classes = [IsAuthenticated, HasPermission]
     filterset_fields = ['employee', 'punch_type', 'attendance']
     search_fields = ['employee__employee_id', 'employee__user__email']
@@ -846,9 +872,7 @@ class FraudLogViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Read
     Branch-filtered - fraud logs are sensitive and must be scoped to user's branches.
     """
     
-    queryset = FraudLog.objects.select_related(
-        'employee', 'employee__user', 'punch', 'reviewed_by'
-    ).order_by('-created_at')
+    queryset = FraudLog.objects.none()
     serializer_class = FraudLogSerializer
     permission_classes = [IsAuthenticated, HasPermission, BranchPermission]
     filter_backends = [BranchFilterBackend]
@@ -861,7 +885,13 @@ class FraudLogViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Read
     }
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = FraudLog.objects.select_related(
+            'employee', 'employee__user', 'punch', 'reviewed_by'
+        ).all()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         if branch_ids is None:
             return queryset
@@ -915,9 +945,7 @@ class FraudLogViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Read
 class ShiftAssignmentViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Assign shifts to employees"""
     
-    queryset = ShiftAssignment.objects.select_related(
-        'employee', 'employee__user', 'shift', 'branch'
-    ).filter(is_active=True)
+    queryset = ShiftAssignment.objects.none()
     serializer_class = ShiftAssignmentSerializer
     permission_classes = [IsAuthenticated, HasPermission, BranchPermission]
     filter_backends = [BranchFilterBackend]
@@ -939,7 +967,13 @@ class ShiftAssignmentViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewse
     }
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = ShiftAssignment.objects.select_related(
+            'employee', 'employee__user', 'shift', 'branch'
+        ).filter(is_active=True)
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         branch_ids = self.get_branch_ids()
         if branch_ids is not None:
             if not branch_ids:

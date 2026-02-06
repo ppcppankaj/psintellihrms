@@ -125,12 +125,10 @@ class ReportViewSet(viewsets.ViewSet):
         """
         branch_ids = self._get_branch_filter(request)
         org = self._get_org_filter(request)
-        
-        # Build base queryset
-        qs = Department.objects.all()
-        
-        if org:
-            qs = qs.filter(Q(branch__organization=org) | Q(branch__isnull=True))
+        if not org:
+            return Response([])
+            
+        qs = Department.objects.filter(organization=org)
         
         # Annotate with employee count (filtered by branch)
         emp_filter = Q(employees__employment_status='active')
@@ -155,9 +153,9 @@ class ReportViewSet(viewsets.ViewSet):
         org = self._get_org_filter(request)
         
         # Get leave types for org
-        leave_types = LeaveType.objects.all()
-        if org:
-            leave_types = leave_types.filter(organization=org)
+        if not org:
+            return Response([])
+        leave_types = LeaveType.objects.filter(organization=org)
         
         result = []
         for lt in leave_types:
@@ -275,9 +273,12 @@ class ReportViewSet(viewsets.ViewSet):
 
 class ReportTemplateViewSet(viewsets.ModelViewSet):
     """CRUD for report templates"""
-    queryset = ReportTemplate.objects.all()
+    queryset = ReportTemplate.objects.none()
     serializer_class = ReportTemplateSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['report_type', 'is_active']
     search_fields = ['name', 'code', 'description']
@@ -290,9 +291,12 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
 
 class ScheduledReportViewSet(viewsets.ModelViewSet):
     """CRUD for scheduled reports"""
-    queryset = ScheduledReport.objects.all()
+    queryset = ScheduledReport.objects.none()
     serializer_class = ScheduledReportSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['format', 'is_active']
     search_fields = ['template__name', 'schedule']
@@ -305,7 +309,7 @@ class ScheduledReportViewSet(viewsets.ModelViewSet):
 
 class ReportExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     """List/retrieve report executions"""
-    queryset = ReportExecution.objects.all()
+    queryset = ReportExecution.objects.none()
     serializer_class = ReportExecutionSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]

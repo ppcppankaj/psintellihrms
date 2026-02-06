@@ -26,7 +26,7 @@ from .services import ExpenseService, AdvanceService
 
 class ExpenseCategoryViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for expense categories"""
-    queryset = ExpenseCategory.objects.all()
+    queryset = ExpenseCategory.objects.none()
     serializer_class = ExpenseCategorySerializer
     permission_classes = [IsAuthenticated]
     
@@ -44,7 +44,7 @@ class ExpenseClaimViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, vie
     """
     ViewSet for expense claims.
     """
-    queryset = ExpenseClaim.objects.all()
+    queryset = ExpenseClaim.objects.none()
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
         'list': ['expenses.view'],
@@ -410,7 +410,7 @@ class ExpenseClaimViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, vie
 
 class ExpenseItemViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for expense items"""
-    queryset = ExpenseItem.objects.all()
+    queryset = ExpenseItem.objects.none()
     serializer_class = ExpenseItemSerializer
     permission_classes = [IsAuthenticated]
     
@@ -428,7 +428,7 @@ class EmployeeAdvanceViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, 
     """
     ViewSet for employee advances.
     """
-    queryset = EmployeeAdvance.objects.all()
+    queryset = EmployeeAdvance.objects.none()
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
         'list': ['expenses.view'],

@@ -6,6 +6,7 @@ Prevents accidental cross-organization data leaks
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from typing import Optional
+import sys
 
 # ============================================================================
 # THREAD-LOCAL CONTEXT (USED BY MIDDLEWARE)
@@ -148,6 +149,14 @@ class OrgBranchManager(models.Manager):
         """
         qs = OrgBranchQuerySet(self.model, using=self._db)
 
+        # Bypass for management commands (migrations, shell, etc.)
+        COMMANDS_TO_SKIP = [
+            'migrate', 'makemigrations', 'shell', 'createsuperuser',
+            'collectstatic', 'check', 'loaddata', 'dumpdata', 'test'
+        ]
+        if len(sys.argv) > 1 and sys.argv[1] in COMMANDS_TO_SKIP:
+            return qs
+
         org = get_current_organization()
         if not org:
             raise PermissionDenied(
@@ -218,6 +227,14 @@ class OrganizationScopedManager(models.Manager):
         Always scope by current organization
         """
         qs = OrganizationScopedQuerySet(self.model, using=self._db)
+
+        # Bypass for management commands
+        COMMANDS_TO_SKIP = [
+            'migrate', 'makemigrations', 'shell', 'createsuperuser',
+            'collectstatic', 'check', 'loaddata', 'dumpdata', 'test'
+        ]
+        if len(sys.argv) > 1 and sys.argv[1] in COMMANDS_TO_SKIP:
+            return qs
 
         org = get_current_organization()
         if not org:

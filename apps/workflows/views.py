@@ -16,13 +16,17 @@ from .serializers import (
 )
 from .services import WorkflowService
 from apps.core.permissions_branch import BranchFilterBackend, BranchPermission
+from apps.core.tenant_guards import OrganizationViewSetMixin
 
 
-class WorkflowStepViewSet(viewsets.ModelViewSet):
+class WorkflowStepViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Workflow Steps - Configuration (read-only for most users)"""
-    queryset = WorkflowStep.objects.select_related('workflow').all()
+    queryset = WorkflowStep.objects.none()
     serializer_class = WorkflowStepSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return super().get_queryset().select_related('workflow')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['workflow']
     search_fields = ['name']
@@ -46,16 +50,19 @@ class IsHRAdminOrReadOnly(permissions.BasePermission):
         return False
 
 
-class WorkflowDefinitionViewSet(viewsets.ModelViewSet):
+class WorkflowDefinitionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """
     Workflow Definitions - Organization-scoped templates
     Defines approval chains for leave, expenses, etc.
     
     SECURITY: Read access for authenticated users, write only for HR admins.
     """
-    queryset = WorkflowDefinition.objects.all()
+    queryset = WorkflowDefinition.objects.none()
     serializer_class = WorkflowDefinitionSerializer
     permission_classes = [IsHRAdminOrReadOnly]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['entity_type', 'is_active']
     search_fields = ['name', 'code']
@@ -80,14 +87,12 @@ class WorkflowDefinitionViewSet(viewsets.ModelViewSet):
         )
 
 
-class WorkflowInstanceViewSet(viewsets.ModelViewSet):
+class WorkflowInstanceViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """
     Workflow Instances - Branch-filtered via current_approver's branch
     Tracks individual approval requests
     """
-    queryset = WorkflowInstance.objects.select_related(
-        'workflow', 'current_approver'
-    ).all()
+    queryset = WorkflowInstance.objects.none()
     serializer_class = WorkflowInstanceSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -95,11 +100,9 @@ class WorkflowInstanceViewSet(viewsets.ModelViewSet):
     search_fields = ['entity_type']
 
     def get_queryset(self):
-        """
-        Filter workflow instances by user's accessible branches
-        Users see instances where they are the approver or the requester
-        """
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related(
+            'workflow', 'current_approver'
+        )
         user = self.request.user
         
         if user.is_superuser:
@@ -108,7 +111,8 @@ class WorkflowInstanceViewSet(viewsets.ModelViewSet):
         # Get user's accessible branches
         from apps.authentication.models_hierarchy import BranchUser
         branch_ids = list(BranchUser.objects.filter(
-            user=user, is_active=True
+            user=user, is_active=True,
+            organization=getattr(self.request, 'organization', None)
         ).values_list('branch_id', flat=True))
         
         # Get employee if exists
@@ -512,14 +516,12 @@ class WorkflowInstanceViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class WorkflowActionViewSet(viewsets.ReadOnlyModelViewSet):
+class WorkflowActionViewSet(OrganizationViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
     Workflow Actions - Read-only audit trail
     Records all approval/rejection/delegation actions
     """
-    queryset = WorkflowAction.objects.select_related(
-        'instance', 'actor'
-    ).all()
+    queryset = WorkflowAction.objects.none()
     serializer_class = WorkflowActionSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
@@ -527,7 +529,9 @@ class WorkflowActionViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """Filter by user's accessible branches through actor"""
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related(
+            'instance', 'actor'
+        )
         user = self.request.user
         
         if user.is_superuser:
@@ -535,7 +539,8 @@ class WorkflowActionViewSet(viewsets.ReadOnlyModelViewSet):
         
         from apps.authentication.models_hierarchy import BranchUser
         branch_ids = BranchUser.objects.filter(
-            user=user, is_active=True
+            user=user, is_active=True,
+            organization=getattr(self.request, 'organization', None)
         ).values_list('branch_id', flat=True)
         
         return queryset.filter(actor__branch_id__in=branch_ids)

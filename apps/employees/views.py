@@ -57,12 +57,7 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
     - Delete: HR Admin with audit log
     """
     
-    queryset = Employee.objects.select_related(
-        'user', 'department', 'designation', 'location', 
-        'reporting_manager', 'reporting_manager__user'
-    ).prefetch_related(
-        'addresses', 'bank_accounts', 'skills', 'dependents'
-    ).filter(is_deleted=False)
+    queryset = Employee.objects.none()
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend]
     
@@ -138,15 +133,21 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
         skills_data = data.pop('skills', None)
         if skills_data:
             EmployeeSkill.objects.filter(employee=employee).delete()
-            for skill_item in skills_data:
-                skill_id = skill_item.get('skill_id') or skill_item.get('skill')
-                if skill_id:
-                    EmployeeSkill.objects.create(
-                        employee=employee,
-                        skill_id=skill_id,
-                        proficiency=skill_item.get('proficiency', 'intermediate'),
-                        years_of_experience=skill_item.get('years_of_experience', 0)
-                    )
+            for skill_data in skills_data:
+                skill_id = skill_data.get('skill')
+                try:
+                    skill = Skill.objects.get(id=skill_id, organization=self.request.organization)
+                    EmployeeSkill.objects.update_or_create(
+                            employee=employee,
+                            skill=skill, # Use the skill object found
+                            defaults={
+                                'proficiency': skill_data.get('proficiency', 'intermediate'),
+                                'years_of_experience': skill_data.get('years_of_experience', 0)
+                            }
+                        )
+                except Skill.DoesNotExist:
+                    logger.warning(f"Skill with ID {skill_id} not found or not in organization {self.request.organization.id}. Skipping.")
+
 
         # 2. Handle Bank Account
         bank_data = data.pop('bank_account', None)
@@ -276,7 +277,7 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
             if role_ids:
                 for role_id in role_ids:
                     try:
-                        role = Role.objects.get(id=role_id)
+                        role = Role.objects.get(id=role_id, organization=request.organization)
                         UserRole.objects.get_or_create(user=user, role=role, assigned_by=request.user)
                     except Role.DoesNotExist:
                         pass
@@ -361,7 +362,7 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
                     UserRole.objects.filter(user=user).delete()
                     for role_id in role_ids:
                         try:
-                            role = Role.objects.get(id=role_id)
+                            role = Role.objects.get(id=role_id, organization=request.organization)
                             UserRole.objects.get_or_create(user=user, role=role, assigned_by=request.user)
                         except Role.DoesNotExist:
                             pass
@@ -418,7 +419,7 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
             years_of_experience = request.data.get('years_of_experience', 0)
             
             try:
-                skill = Skill.objects.get(id=skill_id)
+                skill = Skill.objects.get(id=skill_id, organization=request.organization)
                 emp_skill, created = EmployeeSkill.objects.get_or_create(
                     employee=employee,
                     skill=skill,
@@ -589,15 +590,20 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
     
     @action(detail=False, methods=['get'])
     def org_chart(self, request):
-        """Get organization chart starting from top"""
-        # Get employees with no manager (top level)
-        top_employees = Employee.objects.filter(
+        org = getattr(request, 'organization', None)
+
+        qs = Employee.objects.filter(
             reporting_manager__isnull=True,
             is_active=True,
             is_deleted=False
         )
-        serializer = emp_serializers.OrgChartSerializer(top_employees, many=True)
+
+        if org:
+            qs = qs.filter(organization=org)
+
+        serializer = emp_serializers.OrgChartSerializer(qs, many=True)
         return Response({'success': True, 'data': serializer.data})
+
 
     @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser])
     def upload_avatar(self, request, pk=None):
@@ -618,12 +624,32 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
         })
 
 
-class DepartmentViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
-    """ViewSet for departments"""
-    
-    queryset = Department.objects.filter(is_deleted=False)
+class DepartmentViewSet(
+    BulkImportExportMixin,
+    OrganizationViewSetMixin,
+    viewsets.ModelViewSet
+):
+    queryset = Department.objects.none()
     serializer_class = emp_serializers.DepartmentSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_import_serializer_class(self):
+        return emp_serializers.DepartmentBulkImportSerializer
+
+    def get_queryset(self):
+        queryset = Department.objects.filter(is_deleted=False)
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+
+        parent = self.request.query_params.get('parent')
+        if parent == 'null':
+            queryset = queryset.filter(parent__isnull=True)
+        elif parent:
+            queryset = queryset.filter(parent_id=parent)
+
+        return queryset
+
 
     def get_import_serializer_class(self):
         return emp_serializers.DepartmentBulkImportSerializer
@@ -652,9 +678,16 @@ class DepartmentViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewset
 class DesignationViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for designations"""
     
-    queryset = Designation.objects.filter(is_deleted=False)
+    queryset = Designation.objects.none()
     serializer_class = emp_serializers.DesignationSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Designation.objects.filter(is_deleted=False)
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
     def get_import_serializer_class(self):
         return emp_serializers.DesignationBulkImportSerializer
@@ -663,17 +696,31 @@ class DesignationViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewse
 class LocationViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for locations"""
     
-    queryset = Location.objects.filter(is_deleted=False)
+    queryset = Location.objects.none()
     serializer_class = emp_serializers.LocationSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Location.objects.filter(is_deleted=False)
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
 
 class SkillViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for skills"""
     
-    queryset = Skill.objects.filter(is_deleted=False)
+    queryset = Skill.objects.none()
     serializer_class = emp_serializers.SkillSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Skill.objects.filter(is_deleted=False)
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
 
 # CertificationViewSet REMOVED
@@ -684,7 +731,7 @@ class SkillViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.Mod
 
 class EmployeeAddressViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for employee addresses"""
-    queryset = EmployeeAddress.objects.all()
+    queryset = EmployeeAddress.objects.none()
     serializer_class = emp_serializers.EmployeeAddressSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -697,6 +744,13 @@ class EmployeeAddressViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, 
     }
     scope_field = 'employee'
     permission_category = 'employees'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
     def perform_create(self, serializer):
         # Extract employee from request data (it's not in serializer fields)
@@ -714,7 +768,7 @@ class EmployeeAddressViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, 
 
 class EmployeeBankAccountViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for employee bank accounts"""
-    queryset = EmployeeBankAccount.objects.all()
+    queryset = EmployeeBankAccount.objects.none()
     serializer_class = emp_serializers.EmployeeBankAccountSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -727,6 +781,13 @@ class EmployeeBankAccountViewSet(OrganizationViewSetMixin, FilterByPermissionMix
     }
     scope_field = 'employee'
     permission_category = 'employees'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
     def perform_create(self, serializer):
         employee_id = self.request.data.get('employee') or self.request.data.get('employee_id')
@@ -743,7 +804,7 @@ class EmployeeBankAccountViewSet(OrganizationViewSetMixin, FilterByPermissionMix
 
 class EmergencyContactViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for emergency contacts"""
-    queryset = EmergencyContact.objects.all()
+    queryset = EmergencyContact.objects.none()
     serializer_class = emp_serializers.EmergencyContactSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -756,6 +817,13 @@ class EmergencyContactViewSet(OrganizationViewSetMixin, FilterByPermissionMixin,
     }
     scope_field = 'employee'
     permission_category = 'employees'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
     def perform_create(self, serializer):
         employee_id = self.request.data.get('employee') or self.request.data.get('employee_id')
@@ -772,7 +840,7 @@ class EmergencyContactViewSet(OrganizationViewSetMixin, FilterByPermissionMixin,
 
 class EmployeeDependentViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for employee dependents"""
-    queryset = EmployeeDependent.objects.all()
+    queryset = EmployeeDependent.objects.none()
     serializer_class = emp_serializers.EmployeeDependentSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -785,6 +853,13 @@ class EmployeeDependentViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
     }
     scope_field = 'employee'
     permission_category = 'employees'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
     def perform_create(self, serializer):
         employee_id = self.request.data.get('employee') or self.request.data.get('employee_id')
@@ -801,7 +876,7 @@ class EmployeeDependentViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
 
 class EmployeeTransferViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for employee transfers"""
-    queryset = EmployeeTransfer.objects.all()
+    queryset = EmployeeTransfer.objects.none()
     serializer_class = emp_serializers.EmployeeTransferSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -810,6 +885,13 @@ class EmployeeTransferViewSet(OrganizationViewSetMixin, FilterByPermissionMixin,
         'create': ['employees.transitions'],
     }
     scope_field = 'employee'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(initiated_by=self.request.user.employee)
@@ -838,7 +920,7 @@ class EmployeeTransferViewSet(OrganizationViewSetMixin, FilterByPermissionMixin,
 
 class EmployeePromotionViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for employee promotions"""
-    queryset = EmployeePromotion.objects.all()
+    queryset = EmployeePromotion.objects.none()
     serializer_class = emp_serializers.EmployeePromotionSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -847,6 +929,13 @@ class EmployeePromotionViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
         'create': ['employees.transitions'],
     }
     scope_field = 'employee'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(recommended_by=self.request.user.employee)
@@ -875,7 +964,7 @@ class EmployeePromotionViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
 
 class ResignationRequestViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for resignation requests"""
-    queryset = ResignationRequest.objects.all()
+    queryset = ResignationRequest.objects.none()
     serializer_class = emp_serializers.ResignationRequestSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -885,12 +974,25 @@ class ResignationRequestViewSet(OrganizationViewSetMixin, FilterByPermissionMixi
     }
     scope_field = 'employee'
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
+
     @action(detail=False, methods=['get'])
     def my_resignation(self, request):
-        resignation = self.queryset.filter(employee=request.user.employee).first()
+        resignation = ResignationRequest.objects.filter(
+            employee=request.user.employee,
+            organization=request.organization
+        ).first()
+
         if not resignation:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'No resignation request found'}, status=status.HTTP_404_NOT_FOUND)
+
         return Response(self.get_serializer(resignation).data)
+
 
     @action(detail=True, methods=['post'])
     def submit(self, request, pk=None):
@@ -924,7 +1026,7 @@ class ResignationRequestViewSet(OrganizationViewSetMixin, FilterByPermissionMixi
 
 class ExitInterviewViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for exit interviews"""
-    queryset = ExitInterview.objects.all()
+    queryset = ExitInterview.objects.none()
     serializer_class = emp_serializers.ExitInterviewSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -934,12 +1036,19 @@ class ExitInterviewViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, vi
     }
     scope_field = 'employee'
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+        return queryset
+
     def perform_create(self, serializer):
         # Handle resignation link from data if provided, otherwise auto-detect
         resignation_id = self.request.data.get('resignation') or self.request.data.get('resignation_id')
         
         if resignation_id:
-            resignation = ResignationRequest.objects.get(id=resignation_id)
+            resignation = ResignationRequest.objects.get(id=resignation_id, organization=self.request.organization)
         else:
             resignation = ResignationRequest.objects.filter(
                 employee=self.request.user.employee,
@@ -962,7 +1071,7 @@ class EmployeeDocumentViewSet(OrganizationViewSetMixin, FilterByPermissionMixin,
     - PUT /api/v1/employees/documents/{id}/: Update document
     - DELETE /api/v1/employees/documents/{id}/: Delete document
     """
-    queryset = Document.objects.select_related('employee', 'verified_by').all()
+    queryset = Document.objects.none()
     serializer_class = emp_serializers.DocumentSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     parser_classes = [MultiPartParser, FormParser]
@@ -978,7 +1087,11 @@ class EmployeeDocumentViewSet(OrganizationViewSetMixin, FilterByPermissionMixin,
     permission_category = 'employees'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('employee', 'verified_by')
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         employee_id = self.request.query_params.get('employee')
         if employee_id:
             queryset = queryset.filter(employee_id=employee_id)
@@ -1025,12 +1138,7 @@ class EmploymentHistoryViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
     - PUT /api/v1/employees/employment-history/{id}/: Update history record
     - DELETE /api/v1/employees/employment-history/{id}/: Delete history record
     """
-    queryset = EmploymentHistory.objects.select_related(
-        'employee', 'previous_department', 'new_department',
-        'previous_designation', 'new_designation',
-        'previous_location', 'new_location',
-        'previous_manager', 'new_manager'
-    ).all()
+    queryset = EmploymentHistory.objects.none()
     serializer_class = emp_serializers.EmploymentHistorySerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -1045,7 +1153,16 @@ class EmploymentHistoryViewSet(OrganizationViewSetMixin, FilterByPermissionMixin
     permission_category = 'employees'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related(
+            'employee', 'previous_department', 'new_department',
+            'previous_designation', 'new_designation',
+            'previous_location', 'new_location',
+            'previous_manager', 'new_manager'
+        )
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         employee_id = self.request.query_params.get('employee')
         if employee_id:
             queryset = queryset.filter(employee_id=employee_id)
@@ -1076,7 +1193,7 @@ class CertificationViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, vi
     - PUT /api/v1/employees/certifications/{id}/: Update certification
     - DELETE /api/v1/employees/certifications/{id}/: Delete certification
     """
-    queryset = Certification.objects.select_related('employee', 'verified_by').all()
+    queryset = Certification.objects.none()
     serializer_class = emp_serializers.CertificationSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     parser_classes = [MultiPartParser, FormParser]
@@ -1092,7 +1209,11 @@ class CertificationViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, vi
     permission_category = 'employees'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('employee', 'verified_by')
+        org = getattr(self.request, 'organization', None)
+        if org:
+            queryset = queryset.filter(organization=org)
+            
         employee_id = self.request.query_params.get('employee')
         if employee_id:
             queryset = queryset.filter(employee_id=employee_id)

@@ -33,13 +33,13 @@ class IsHRAdminOrSuperuser(permissions.BasePermission):
         return False
 
 
-class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+class NotificationViewSet(OrganizationViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """User notifications - users can only see their own."""
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        return Notification.objects.filter(recipient__user=self.request.user).order_by('-created_at')
+        return super().get_queryset().filter(recipient__user=self.request.user).order_by('-created_at')
 
     @action(detail=True, methods=['post'])
     def read(self, request, pk=None):
@@ -106,15 +106,16 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class NotificationTemplateViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing notification templates - HR Admin/Superuser only"""
-    queryset = NotificationTemplate.objects.all()
+    queryset = NotificationTemplate.objects.none()
     serializer_class = NotificationTemplateSerializer
     permission_classes = [IsHRAdminOrSuperuser]
     
     def get_queryset(self):
-        return NotificationTemplate.objects.all()
+        return super().get_queryset()
 
 
 class NotificationPreferenceViewSet(
+    OrganizationViewSetMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet

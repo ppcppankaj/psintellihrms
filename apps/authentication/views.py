@@ -38,6 +38,7 @@ from .serializers import (
     UserSessionSerializer,
 )
 from apps.core.org_permissions import IsOrgAdminOrSuperuser
+from apps.core.tenant_guards import OrganizationViewSetMixin
 
 
 # =====================================================
@@ -267,14 +268,14 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     """
     🔒 Tenant-safe user management
     """
-    queryset = User.objects.all()
+    queryset = User.objects.none()
     permission_classes = [IsAuthenticated, IsOrgAdminOrSuperuser]
 
     def get_queryset(self):
         user = self.request.user
 
         if user.is_superuser:
-            return User.objects.all()
+            return User.objects.filter()
 
         if user.is_org_admin and user.organization:
             return User.objects.filter(organization=user.organization)

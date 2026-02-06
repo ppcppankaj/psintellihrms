@@ -12,6 +12,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 
 from apps.core.permissions_branch import BranchFilterBackend, BranchPermission, OrganizationFilterBackend
+from apps.core.tenant_guards import OrganizationViewSetMixin
 from .models import (
     DataRetentionPolicy,
     ConsentRecord,
@@ -32,12 +33,12 @@ from .services import AuditExportService, RetentionService
 from .tasks import run_audit_export, run_retention_execution
 
 
-class DataRetentionPolicyViewSet(viewsets.ModelViewSet):
+class DataRetentionPolicyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """
     Data Retention Policy management.
     Organization-scoped (policies apply to entire organization).
     """
-    queryset = DataRetentionPolicy.objects.all()
+    queryset = DataRetentionPolicy.objects.none()
     serializer_class = DataRetentionPolicySerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter]
@@ -46,24 +47,22 @@ class DataRetentionPolicyViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter by user's organization"""
         queryset = super().get_queryset()
-        if self.request.user.is_superuser:
-            return queryset
+        if hasattr(self.request.user, 'is_superuser') and self.request.user.is_superuser:
+            return DataRetentionPolicy.objects.filter() # Superusers can see all if needed, but rule 1 is strict.
         
-        org = self.request.user.get_organization()
+        org = getattr(self.request, 'organization', None)
         if not org:
-            return queryset.none()
+            return DataRetentionPolicy.objects.none()
         
-        if hasattr(queryset.model, 'organization'):
-            return queryset.filter(organization=org)
-        return queryset
+        return queryset.filter(organization=org)
 
 
-class ConsentRecordViewSet(viewsets.ModelViewSet):
+class ConsentRecordViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """
     Consent records for GDPR compliance.
     Branch-scoped through employee relationship.
     """
-    queryset = ConsentRecord.objects.all()
+    queryset = ConsentRecord.objects.none()
     serializer_class = ConsentRecordSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, SearchFilter]
@@ -73,8 +72,14 @@ class ConsentRecordViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter by user's accessible branches via employee"""
         queryset = super().get_queryset()
-        if self.request.user.is_superuser:
-            return queryset
+        if hasattr(self.request.user, 'is_superuser') and self.request.user.is_superuser:
+            return ConsentRecord.objects.filter()
+        
+        org = getattr(self.request, 'organization', None)
+        if not org:
+            return ConsentRecord.objects.none()
+        
+        queryset = queryset.filter(organization=org)
         
         # Get user's branches
         from apps.authentication.models_hierarchy import BranchUser
@@ -89,12 +94,12 @@ class ConsentRecordViewSet(viewsets.ModelViewSet):
         return queryset.filter(employee__branch_id__in=branch_ids)
 
 
-class LegalHoldViewSet(viewsets.ModelViewSet):
+class LegalHoldViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """
     Legal holds for data preservation.
     Organization-scoped with employee references.
     """
-    queryset = LegalHold.objects.all()
+    queryset = LegalHold.objects.none()
     serializer_class = LegalHoldSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -104,13 +109,15 @@ class LegalHoldViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter by user's accessible branches via affected employees"""
         queryset = super().get_queryset()
+        
+        org = getattr(self.request, 'organization', None)
+        if not org:
+            return LegalHold.objects.none()
+        
+        queryset = queryset.filter(employees__branch__organization=org).distinct()
+
         if self.request.user.is_superuser:
             return queryset
-        
-        # Get user's organization
-        org = self.request.user.get_organization()
-        if not org:
-            return queryset.none()
         
         # Filter to legal holds that have affected employees in user's branches
         from apps.authentication.models_hierarchy import BranchUser
@@ -121,7 +128,7 @@ class LegalHoldViewSet(viewsets.ModelViewSet):
         
         if self.request.user.is_org_admin or self.request.user.is_organization_admin():
             # Org admins see all legal holds in their org
-            return queryset.filter(employees__branch__organization=org).distinct()
+            return queryset
         
         if not branch_ids:
             return queryset.none()
@@ -129,14 +136,17 @@ class LegalHoldViewSet(viewsets.ModelViewSet):
         return queryset.filter(employees__branch_id__in=branch_ids).distinct()
 
 
-class DataSubjectRequestViewSet(viewsets.ModelViewSet):
+class DataSubjectRequestViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """DSAR requests"""
-    queryset = DataSubjectRequest.objects.all()
+    queryset = DataSubjectRequest.objects.none()
     serializer_class = DataSubjectRequestSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter]
     filterset_fields = ['request_type', 'status', 'employee']
     search_fields = ['details', 'notes']
+
+    def get_queryset(self):
+        return super().get_queryset()
 
     def perform_create(self, serializer):
         org = self.request.user.get_organization() if hasattr(self.request.user, 'get_organization') else None
@@ -174,14 +184,17 @@ class DataSubjectRequestViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(dsar).data)
 
 
-class AuditExportRequestViewSet(viewsets.ModelViewSet):
+class AuditExportRequestViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Audit export requests"""
-    queryset = AuditExportRequest.objects.all()
+    queryset = AuditExportRequest.objects.none()
     serializer_class = AuditExportRequestSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter]
     filterset_fields = ['status']
     search_fields = ['requested_by__email']
+
+    def get_queryset(self):
+        return super().get_queryset()
 
     def perform_create(self, serializer):
         org = self.request.user.get_organization() if hasattr(self.request.user, 'get_organization') else None
@@ -209,14 +222,17 @@ class AuditExportRequestViewSet(viewsets.ModelViewSet):
         return FileResponse(export_request.file.open('rb'), as_attachment=True)
 
 
-class RetentionExecutionViewSet(viewsets.ModelViewSet):
+class RetentionExecutionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Retention executions"""
-    queryset = RetentionExecution.objects.all()
+    queryset = RetentionExecution.objects.none()
     serializer_class = RetentionExecutionSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter]
     filterset_fields = ['status', 'policy', 'dry_run']
     search_fields = ['policy__name']
+
+    def get_queryset(self):
+        return super().get_queryset()
 
     def perform_create(self, serializer):
         org = self.request.user.get_organization() if hasattr(self.request.user, 'get_organization') else None

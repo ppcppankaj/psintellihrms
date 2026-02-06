@@ -12,6 +12,7 @@ import requests
 from rest_framework.exceptions import PermissionDenied
 from .models import Integration, Webhook, APIKey
 from .serializers import IntegrationSerializer, WebhookSerializer, APIKeySerializer
+from apps.core.tenant_guards import OrganizationViewSetMixin
 
 
 class IsSuperuserOnly(permissions.BasePermission):
@@ -20,11 +21,14 @@ class IsSuperuserOnly(permissions.BasePermission):
         return request.user and request.user.is_authenticated and request.user.is_superuser
 
 
-class IntegrationViewSet(viewsets.ModelViewSet):
+class IntegrationViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Integration management - Superuser only"""
-    queryset = Integration.objects.all()
+    queryset = Integration.objects.none()
     serializer_class = IntegrationSerializer
     permission_classes = [IsSuperuserOnly]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filterset_fields = ['provider', 'is_connected']
 
     def perform_create(self, serializer):
@@ -58,11 +62,14 @@ class IntegrationViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'message': 'Sync queued', 'data': self.get_serializer(integration).data})
 
 
-class WebhookViewSet(viewsets.ModelViewSet):
+class WebhookViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Webhook management - Superuser only"""
-    queryset = Webhook.objects.all()
+    queryset = Webhook.objects.none()
     serializer_class = WebhookSerializer
     permission_classes = [IsSuperuserOnly]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filterset_fields = ['is_active']
 
     def perform_create(self, serializer):
@@ -98,11 +105,14 @@ class WebhookViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'data': self.get_serializer(webhook).data})
 
 
-class APIKeyViewSet(viewsets.ModelViewSet):
+class APIKeyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """API Key management - Superuser only"""
-    queryset = APIKey.objects.all()
+    queryset = APIKey.objects.none()
     serializer_class = APIKeySerializer
     permission_classes = [IsSuperuserOnly]
+    
+    def get_queryset(self):
+        return super().get_queryset()
 
     def perform_create(self, serializer):
         key = secrets.token_hex(32)

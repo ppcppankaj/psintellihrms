@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import AIModelVersion, AIPrediction
 from .serializers import AIModelVersionSerializer, AIPredictionSerializer
+from apps.core.tenant_guards import OrganizationViewSetMixin
 
 
 class IsSuperuserOnly(permissions.BasePermission):
@@ -28,11 +29,14 @@ class IsSuperuserOrReadOnly(permissions.BasePermission):
         return request.user.is_superuser
 
 
-class AIModelVersionViewSet(viewsets.ModelViewSet):
+class AIModelVersionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """AI Model Version management - Superuser only"""
-    queryset = AIModelVersion.objects.all()
+    queryset = AIModelVersion.objects.none()
     serializer_class = AIModelVersionSerializer
     permission_classes = [IsSuperuserOnly]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filterset_fields = ['model_type', 'is_active']
 
     @action(detail=True, methods=['post'])
@@ -62,11 +66,14 @@ class AIModelVersionViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'data': AIPredictionSerializer(aip).data}, status=status.HTTP_201_CREATED)
 
 
-class AIPredictionViewSet(viewsets.ModelViewSet):
+class AIPredictionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """AI Predictions - Read for authenticated, Write for superuser"""
-    queryset = AIPrediction.objects.all()
+    queryset = AIPrediction.objects.none()
     serializer_class = AIPredictionSerializer
     permission_classes = [IsSuperuserOrReadOnly]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filterset_fields = ['entity_type', 'human_reviewed']
 
     @action(detail=True, methods=['post'])

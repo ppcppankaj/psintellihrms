@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import AuditLog, FeatureFlag, Organization
 from .serializers import AuditLogSerializer, FeatureFlagSerializer, OrganizationSerializer
+from apps.core.tenant_guards import OrganizationViewSetMixin
 
 from django.http import JsonResponse
 from rest_framework.throttling import AnonRateThrottle
@@ -71,7 +72,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     - DELETE /api/organizations/{id}/ - Delete (superuser only)
     """
     
-    queryset = Organization.objects.all()
+    queryset = Organization.objects.none()
     serializer_class = OrganizationSerializer
     permission_classes = [IsSuperuser]
     
@@ -85,7 +86,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         if user.is_superuser:
-            return Organization.objects.all()
+            return Organization.objects.filter()
         
         if user.is_org_admin and user.organization:
             return Organization.objects.filter(id=user.organization_id)
@@ -120,12 +121,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         
         return super().destroy(request, *args, **kwargs)
 
-class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+class AuditLogViewSet(OrganizationViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for viewing audit logs.
     ReadOnly as audit logs should never be modified via API.
     """
-    queryset = AuditLog.objects.all()
+    queryset = AuditLog.objects.none()
     serializer_class = AuditLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     
@@ -162,7 +163,10 @@ class FeatureFlagViewSet(viewsets.ModelViewSet):
     ViewSet for managing feature flags.
     SECURITY: Read access for authenticated users, write only for superusers.
     """
-    queryset = FeatureFlag.objects.all()
+    queryset = FeatureFlag.objects.none()
     serializer_class = FeatureFlagSerializer
     permission_classes = [IsSuperuserOnly]
+    
+    def get_queryset(self):
+        return FeatureFlag.objects.filter()
 

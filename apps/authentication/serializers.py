@@ -174,10 +174,26 @@ class UserOrgAdminCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
     organization = serializers.PrimaryKeyRelatedField(
-        queryset=Organization.objects.all(),
+        queryset=Organization.objects.none(),
         required=False,
         allow_null=True
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.user:
+            if request.user.is_superuser:
+                qs = Organization._default_manager.all()
+            elif request.user.organization:
+                qs = Organization._default_manager.filter(
+                    id=request.user.organization_id
+                )
+            else:
+                qs = Organization.objects.none()
+
+            self.fields['organization'].queryset = qs
+
 
     class Meta:
         model = User

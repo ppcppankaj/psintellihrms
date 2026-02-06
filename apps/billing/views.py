@@ -18,8 +18,11 @@ class PlanViewSet(viewsets.ModelViewSet):
     - Super Admin: CRUD
     - Tenants: Read Only
     """
-    queryset = Plan.objects.all()
+    queryset = Plan.objects.none()
     serializer_class = PlanSerializer
+    
+    def get_queryset(self):
+        return Plan.objects.filter()
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -32,16 +35,20 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     - Managed via Admin usually, or auto-created.
     - Tenants should see their own.
     """
-    queryset = Subscription.objects.all()
+    queryset = Subscription.objects.none()
     serializer_class = SubscriptionSerializer
     filterset_fields = ['status', 'organization', 'plan']
     
     def get_queryset(self):
         user = self.request.user
         if hasattr(user, 'is_superuser') and user.is_superuser:
-            return Subscription.objects.all()
+            return Subscription.objects.filter()
+            
         # For tenants, show only their subscription
-        org = user.get_organization() if hasattr(user, 'get_organization') else None
+        org = getattr(self.request, 'organization', None)
+        if not org and hasattr(user, 'get_organization'):
+            org = user.get_organization()
+            
         if org:
             return Subscription.objects.filter(organization=org)
         return Subscription.objects.none()
@@ -189,19 +196,22 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     - Super Admin: CRUD (Create manually)
     - Tenants: Read List/Retrieve own
     """
-    queryset = Invoice.objects.all()
+    queryset = Invoice.objects.none()
     serializer_class = InvoiceSerializer
     filterset_fields = ['status', 'subscription']
     
     def get_queryset(self):
         user = self.request.user
         if hasattr(user, 'is_superuser') and user.is_superuser:
-            return Invoice.objects.all()
+            return Invoice.objects.filter()
         
         # Tenants view their own invoices
-        org = user.get_organization() if hasattr(user, 'get_organization') else None
+        org = getattr(self.request, 'organization', None)
+        if not org and hasattr(user, 'get_organization'):
+            org = user.get_organization()
+            
         if org:
-            return Invoice.objects.filter(subscription__organization=org)
+            return Invoice.objects.filter(organization=org)
         return Invoice.objects.none()
         
     def get_permissions(self):
@@ -282,17 +292,21 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'data': InvoiceSerializer(invoice).data})
 
 class PaymentViewSet(viewsets.ModelViewSet):
-    queryset = Payment.objects.all()
+    queryset = Payment.objects.none()
     serializer_class = PaymentSerializer
     filterset_fields = ['status', 'invoice']
 
     def get_queryset(self):
         user = self.request.user
         if getattr(user, 'is_superuser', False):
-            return Payment.objects.all()
-        org = user.get_organization() if hasattr(user, 'get_organization') else None
+            return Payment.objects.filter()
+            
+        org = getattr(self.request, 'organization', None)
+        if not org and hasattr(user, 'get_organization'):
+            org = user.get_organization()
+            
         if org:
-            return Payment.objects.filter(invoice__subscription__organization=org)
+            return Payment.objects.filter(organization=org)
         return Payment.objects.none()
 
     def get_permissions(self):

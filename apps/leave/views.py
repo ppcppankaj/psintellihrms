@@ -31,9 +31,12 @@ from .services import LeaveCalculationService, LeaveBalanceService, LeaveApprova
 class LeaveTypeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Leave type management"""
     
-    queryset = LeaveType.objects.filter(is_active=True)
+    queryset = LeaveType.objects.none()
     serializer_class = LeaveTypeSerializer
     permission_classes = [IsAuthenticated, HasPermission]
+    
+    def get_queryset(self):
+        return LeaveType.objects.filter(is_active=True)
     # pagination_class = None  # Enforce default pagination
     
     permission_map = {
@@ -49,9 +52,12 @@ class LeaveTypeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets
 class LeavePolicyViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Leave policy management"""
     
-    queryset = LeavePolicy.objects.filter(is_active=True)
+    queryset = LeavePolicy.objects.none()
     serializer_class = LeavePolicySerializer
     permission_classes = [IsAuthenticated, HasPermission]
+    
+    def get_queryset(self):
+        return LeavePolicy.objects.filter(is_active=True)
     
     permission_map = {
         'list': ['leave.view'],
@@ -66,9 +72,7 @@ class LeavePolicyViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewse
 class LeaveRequestViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Leave request management - apply, approve, cancel"""
     
-    queryset = LeaveRequest.objects.select_related(
-        'employee', 'employee__user', 'leave_type', 'current_approver'
-    ).prefetch_related('approvals')
+    queryset = LeaveRequest.objects.none()
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend]
     filterset_fields = ['employee', 'leave_type', 'status', 'start_date', 'end_date']
@@ -528,10 +532,13 @@ class LeaveRequestViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class HolidayViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Holiday calendar management"""
     
-    queryset = Holiday.objects.filter(is_active=True).order_by('date')
+    queryset = Holiday.objects.none()
     serializer_class = HolidaySerializer
     permission_classes = [IsAuthenticated, HasPermission]
     filterset_fields = ['date', 'is_optional', 'is_restricted', 'locations']
+    
+    def get_queryset(self):
+        return Holiday.objects.filter(is_active=True).order_by('date')
     
     permission_map = {
         'list': ['leave.view'],
@@ -575,7 +582,7 @@ class LeaveEncashmentViewSet(viewsets.ModelViewSet):
     Financial data - users can only view/manage their own encashments.
     """
     
-    queryset = LeaveEncashment.objects.all()
+    queryset = LeaveEncashment.objects.none()
     serializer_class = LeaveEncashmentSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend]
@@ -607,7 +614,7 @@ class LeaveEncashmentViewSet(viewsets.ModelViewSet):
         if not employee:
             return Response({'error': 'No employee profile'}, status=400)
             
-        encashments = self.queryset.filter(employee=employee)
+        encashments = LeaveEncashment.objects.filter(employee=employee)
         serializer = self.get_serializer(encashments, many=True)
         return Response(serializer.data)
 
@@ -710,7 +717,7 @@ class CompensatoryLeaveViewSet(viewsets.ModelViewSet):
     """
     from .models import CompensatoryLeave
     
-    queryset = CompensatoryLeave.objects.all()
+    queryset = CompensatoryLeave.objects.none()
     serializer_class = CompensatoryLeaveSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend]
@@ -742,7 +749,7 @@ class CompensatoryLeaveViewSet(viewsets.ModelViewSet):
         if not employee:
             return Response({'error': 'No employee profile'}, status=400)
             
-        compoffs = self.queryset.filter(employee=employee)
+        compoffs = CompensatoryLeave.objects.filter(employee=employee)
         serializer = self.get_serializer(compoffs, many=True)
         return Response(serializer.data)
 
@@ -835,9 +842,27 @@ class LeaveBalanceViewSet(OrganizationViewSetMixin, viewsets.ReadOnlyModelViewSe
     - Manager: View team balances.
     - Employee: View own balances (filtered).
     """
-    queryset = LeaveBalance.objects.select_related('employee', 'employee__user', 'leave_type')
+    queryset = LeaveBalance.objects.none()
     serializer_class = LeaveBalanceSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = LeaveBalance.objects.select_related('employee', 'employee__user', 'leave_type')
+        user = self.request.user
+        
+        # Filter by permission
+        if not user.has_permission_for('leave.view_all_balances'):
+            if user.has_permission_for('leave.view_team_balances'):
+                if hasattr(user, 'employee'):
+                    team_ids = list(user.employee.direct_reports.values_list('id', flat=True))
+                    team_ids.append(user.employee.id)
+                    queryset = queryset.filter(employee_id__in=team_ids)
+            else:
+                if hasattr(user, 'employee'):
+                    queryset = queryset.filter(employee=user.employee)
+                else:
+                    queryset = queryset.none()
+        return queryset
     filterset_fields = ['employee', 'leave_type', 'year']
     search_fields = ['employee__employee_id', 'employee__user__first_name', 'employee__user__last_name']
     

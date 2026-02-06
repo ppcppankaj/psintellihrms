@@ -36,9 +36,12 @@ from .serializers import (
 class AssetCategoryViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for asset categories"""
     
-    queryset = AssetCategory.objects.filter(is_deleted=False)
+    queryset = AssetCategory.objects.none()
     serializer_class = AssetCategorySerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['name', 'code']
     ordering_fields = ['name', 'created_at']
@@ -47,8 +50,11 @@ class AssetCategoryViewSet(BulkImportExportMixin, OrganizationViewSetMixin, view
 class AssetViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing assets"""
     
-    queryset = Asset.objects.filter(is_deleted=False).select_related('category', 'current_assignee')
+    queryset = Asset.objects.none()
     permission_classes = [IsAuthenticated, BranchPermission]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False).select_related('category', 'current_assignee')
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['category', 'status', 'current_assignee']
     search_fields = ['name', 'asset_tag', 'serial_number']
@@ -235,9 +241,12 @@ class AssetViewSet(BulkImportExportMixin, OrganizationViewSetMixin, viewsets.Mod
 class AssetAssignmentViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for asset assignments (history)"""
     
-    queryset = AssetAssignment.objects.select_related('asset', 'employee', 'assigned_by')
+    queryset = AssetAssignment.objects.none()
     serializer_class = AssetAssignmentSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return super().get_queryset().select_related('asset', 'employee', 'assigned_by')
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['asset', 'employee', 'returned_date']
     ordering_fields = ['assigned_date', 'returned_date']
@@ -246,9 +255,12 @@ class AssetAssignmentViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class AssetMaintenanceViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for asset maintenance tracking"""
     
-    queryset = AssetMaintenance.objects.filter(is_deleted=False).select_related('asset', 'performed_by')
+    queryset = AssetMaintenance.objects.none()
     serializer_class = AssetMaintenanceSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False).select_related('asset', 'performed_by')
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['asset', 'status', 'maintenance_type']
     search_fields = ['title', 'description', 'asset__asset_tag']
@@ -315,9 +327,12 @@ class AssetMaintenanceViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class AssetRequestViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for employee asset requests"""
     
-    queryset = AssetRequest.objects.filter(is_deleted=False).select_related('employee', 'category', 'reviewed_by', 'fulfilled_asset')
+    queryset = AssetRequest.objects.none()
     serializer_class = AssetRequestSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False).select_related('employee', 'category', 'reviewed_by', 'fulfilled_asset')
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['status', 'category', 'employee']
     search_fields = ['title', 'description']

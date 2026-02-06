@@ -238,10 +238,21 @@ class ShiftAssignmentBulkSerializer(serializers.Serializer):
         child=serializers.UUIDField(),
         min_length=1
     )
-    shift = serializers.PrimaryKeyRelatedField(queryset=Shift.objects.filter(is_active=True))
+    shift = serializers.PrimaryKeyRelatedField(queryset=Shift.objects.none())
     effective_from = serializers.DateField()
     effective_to = serializers.DateField(required=False, allow_null=True)
     is_primary = serializers.BooleanField(default=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['shift'].queryset = Shift.objects.filter(
+                organization=request.organization,
+                is_active=True
+            )
+        else:
+            self.fields['shift'].queryset = Shift.objects.none()
 
 
 class OvertimeRequestSerializer(serializers.ModelSerializer):

@@ -25,9 +25,12 @@ from apps.core.tenant_guards import OrganizationViewSetMixin
 class AttributeTypeViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing attribute types"""
     
-    queryset = AttributeType.objects.filter(is_deleted=False)
+    queryset = AttributeType.objects.none()
     serializer_class = AttributeTypeSerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['category', 'data_type']
     search_fields = ['name', 'code', 'description']
 
@@ -35,9 +38,12 @@ class AttributeTypeViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class PolicyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing policies"""
     
-    queryset = Policy.objects.filter(is_deleted=False)
+    queryset = Policy.objects.none()
     serializer_class = PolicySerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['policy_type', 'effect', 'is_active', 'resource_type']
     search_fields = ['name', 'code', 'description']
     ordering_fields = ['priority', 'name', 'created_at']
@@ -110,9 +116,12 @@ class PolicyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class PolicyRuleViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing policy rules"""
     
-    queryset = PolicyRule.objects.filter(is_deleted=False)
+    queryset = PolicyRule.objects.none()
     serializer_class = PolicyRuleSerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['policy', 'operator', 'is_active']
     search_fields = ['attribute_path']
 
@@ -120,9 +129,12 @@ class PolicyRuleViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class UserPolicyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing user policy assignments"""
     
-    queryset = UserPolicy.objects.filter(is_deleted=False)
+    queryset = UserPolicy.objects.none()
     serializer_class = UserPolicySerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['user', 'policy', 'is_active']
     search_fields = ['user__email', 'policy__name']
     
@@ -164,9 +176,12 @@ class UserPolicyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class GroupPolicyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing group policy assignments"""
     
-    queryset = GroupPolicy.objects.filter(is_deleted=False)
+    queryset = GroupPolicy.objects.none()
     serializer_class = GroupPolicySerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['group_type', 'is_active']
     search_fields = ['name', 'group_value']
 
@@ -174,9 +189,12 @@ class GroupPolicyViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class PolicyLogViewSet(OrganizationViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing policy evaluation logs (read-only)"""
     
-    queryset = PolicyLog.objects.all()
+    queryset = PolicyLog.objects.none()
     serializer_class = PolicyLogSerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset()
     filterset_fields = ['user', 'resource_type', 'action', 'result']
     search_fields = ['user__email', 'resource_type', 'resource_id']
     ordering_fields = ['evaluated_at']
@@ -210,9 +228,12 @@ class PolicyLogViewSet(OrganizationViewSetMixin, viewsets.ReadOnlyModelViewSet):
 class RoleViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing roles"""
     
-    queryset = Role.objects.filter(is_deleted=False)
+    queryset = Role.objects.none()
     serializer_class = RoleSerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['is_active']
     search_fields = ['name', 'code', 'description']
     ordering = ['name']
@@ -221,9 +242,12 @@ class RoleViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class PermissionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing permissions"""
     
-    queryset = Permission.objects.filter(is_deleted=False)
+    queryset = Permission.objects.none()
     serializer_class = PermissionSerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['module', 'permission_type']
     search_fields = ['name', 'code', 'description', 'module']
     ordering = ['module', 'name']
@@ -232,9 +256,12 @@ class PermissionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 class RoleAssignmentViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing user role assignments"""
     
-    queryset = RoleAssignment.objects.filter(is_deleted=False)
+    queryset = RoleAssignment.objects.none()
     serializer_class = RoleAssignmentSerializer
     permission_classes = [IsAuthenticated, IsHRAdmin]
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
     filterset_fields = ['user', 'role', 'is_active', 'scope']
     search_fields = ['user__email', 'role__name']
     ordering = ['-assigned_at']

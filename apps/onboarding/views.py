@@ -32,7 +32,7 @@ class OnboardingTemplateViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet)
     update: Update template
     delete: Delete template
     """
-    queryset = OnboardingTemplate.objects.all()
+    queryset = OnboardingTemplate.objects.none()
     permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
@@ -62,6 +62,7 @@ class OnboardingTemplateViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet)
         
         # Create new template
         new_template = OnboardingTemplate.objects.create(
+            organization=template.organization,
             name=f"{template.name} (Copy)",
             code=f"{template.code}_copy",
             description=template.description,
@@ -77,6 +78,7 @@ class OnboardingTemplateViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet)
         # Copy tasks
         for task in template.tasks.all():
             OnboardingTaskTemplate.objects.create(
+                organization=template.organization,
                 template=new_template,
                 title=task.title,
                 description=task.description,
@@ -95,7 +97,7 @@ class OnboardingTemplateViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet)
 
 class OnboardingTaskTemplateViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing individual task templates"""
-    queryset = OnboardingTaskTemplate.objects.all()
+    queryset = OnboardingTaskTemplate.objects.none()
     serializer_class = OnboardingTaskTemplateSerializer
     permission_classes = [IsAuthenticated]
     
@@ -119,7 +121,7 @@ class EmployeeOnboardingViewSet(OrganizationViewSetMixin, FilterByPermissionMixi
     """
     ViewSet for employee onboarding instances.
     """
-    queryset = EmployeeOnboarding.objects.all()
+    queryset = EmployeeOnboarding.objects.none()
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
         'list': ['onboarding.view'],
@@ -161,27 +163,34 @@ class EmployeeOnboardingViewSet(OrganizationViewSetMixin, FilterByPermissionMixi
         
         from apps.employees.models import Employee
         
-        employee = get_object_or_404(Employee, id=serializer.validated_data['employee_id'])
+        employee = get_object_or_404(
+            Employee, 
+            id=serializer.validated_data['employee_id'],
+            organization=request.organization
+        )
         
         template = None
         if serializer.validated_data.get('template_id'):
             template = get_object_or_404(
                 OnboardingTemplate, 
-                id=serializer.validated_data['template_id']
+                id=serializer.validated_data['template_id'],
+                organization=request.organization
             )
         
         hr_responsible = None
         if serializer.validated_data.get('hr_responsible_id'):
             hr_responsible = get_object_or_404(
                 Employee, 
-                id=serializer.validated_data['hr_responsible_id']
+                id=serializer.validated_data['hr_responsible_id'],
+                organization=request.organization
             )
         
         buddy = None
         if serializer.validated_data.get('buddy_id'):
             buddy = get_object_or_404(
                 Employee, 
-                id=serializer.validated_data['buddy_id']
+                id=serializer.validated_data['buddy_id'],
+                organization=request.organization
             )
         
         try:
@@ -208,7 +217,10 @@ class EmployeeOnboardingViewSet(OrganizationViewSetMixin, FilterByPermissionMixi
             return Response({'error': 'No employee profile'}, status=status.HTTP_404_NOT_FOUND)
         
         try:
-            onboarding = EmployeeOnboarding.objects.get(employee=employee)
+            onboarding = EmployeeOnboarding.objects.get(
+                employee=employee,
+                organization=request.organization
+            )
             serializer = EmployeeOnboardingDetailSerializer(onboarding)
             return Response(serializer.data)
         except EmployeeOnboarding.DoesNotExist:
@@ -251,7 +263,7 @@ class EmployeeOnboardingViewSet(OrganizationViewSetMixin, FilterByPermissionMixi
 
 class OnboardingTaskProgressViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for onboarding task progress"""
-    queryset = OnboardingTaskProgress.objects.all()
+    queryset = OnboardingTaskProgress.objects.none()
     serializer_class = OnboardingTaskProgressSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {
@@ -327,7 +339,7 @@ class OnboardingTaskProgressViewSet(OrganizationViewSetMixin, FilterByPermission
 
 class OnboardingDocumentViewSet(OrganizationViewSetMixin, FilterByPermissionMixin, viewsets.ModelViewSet):
     """ViewSet for onboarding documents"""
-    queryset = OnboardingDocument.objects.all()
+    queryset = OnboardingDocument.objects.none()
     serializer_class = OnboardingDocumentSerializer
     permission_classes = [IsAuthenticated, HasPermission]
     required_permissions = {

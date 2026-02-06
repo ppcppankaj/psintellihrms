@@ -31,7 +31,7 @@ from .permissions import TrainingManagePermission
 
 class TrainingCategoryViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Manage training categories"""
-    queryset = TrainingCategory.objects.filter(is_deleted=False)
+    queryset = TrainingCategory.objects.none()
     serializer_class = TrainingCategorySerializer
     permission_classes = [IsAuthenticated, TrainingManagePermission]
     filter_backends = [OrganizationFilterBackend, SearchFilter, OrderingFilter]
@@ -39,7 +39,7 @@ class TrainingCategoryViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     ordering_fields = ['name', 'display_order', 'created_at']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = TrainingCategory.objects.filter(is_deleted=False)
         return queryset.annotate(program_count=Count('programs'))
 
     def perform_create(self, serializer):
@@ -49,7 +49,7 @@ class TrainingCategoryViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 
 class TrainingProgramViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Manage training programs"""
-    queryset = TrainingProgram.objects.filter(is_deleted=False).select_related('category')
+    queryset = TrainingProgram.objects.none()
     serializer_class = TrainingProgramSerializer
     permission_classes = [IsAuthenticated, TrainingManagePermission]
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -58,7 +58,7 @@ class TrainingProgramViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     ordering_fields = ['name', 'start_date', 'created_at']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = TrainingProgram.objects.filter(is_deleted=False).select_related('category')
         return queryset.annotate(enrollment_count=Count('enrollments'))
 
     def perform_create(self, serializer):
@@ -108,9 +108,12 @@ class TrainingProgramViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 
 class TrainingMaterialViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Manage training materials"""
-    queryset = TrainingMaterial.objects.filter(is_deleted=False).select_related('program')
+    queryset = TrainingMaterial.objects.none()
     serializer_class = TrainingMaterialSerializer
     permission_classes = [IsAuthenticated, TrainingManagePermission]
+    
+    def get_queryset(self):
+        return TrainingMaterial.objects.filter(is_deleted=False).select_related('program')
     parser_classes = [MultiPartParser, FormParser]
     filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['program', 'material_type', 'is_required']
@@ -127,7 +130,7 @@ class TrainingMaterialViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
 
 class TrainingEnrollmentViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """Manage enrollments and progress"""
-    queryset = TrainingEnrollment.objects.filter(is_deleted=False).select_related('program', 'employee')
+    queryset = TrainingEnrollment.objects.none()
     serializer_class = TrainingEnrollmentSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -136,12 +139,12 @@ class TrainingEnrollmentViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet)
     ordering_fields = ['enrolled_at', 'completed_at', 'created_at']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().filter(is_deleted=False).select_related('program', 'employee')
 
         if self.request.user.is_superuser or self.request.user.is_org_admin or self.request.user.is_organization_admin():
             return queryset
 
-        employee = getattr(self.request.user, 'employee', None)
+        employee = getattr(self.request, 'employee', None)
         if employee:
             return queryset.filter(employee=employee)
 
@@ -224,7 +227,7 @@ class TrainingEnrollmentViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet)
 
 class TrainingCompletionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet):
     """View training completion records"""
-    queryset = TrainingCompletion.objects.filter(is_deleted=False).select_related('enrollment', 'enrollment__program', 'enrollment__employee')
+    queryset = TrainingCompletion.objects.none()
     serializer_class = TrainingCompletionSerializer
     permission_classes = [IsAuthenticated, BranchPermission]
     filter_backends = [BranchFilterBackend, DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -233,12 +236,12 @@ class TrainingCompletionViewSet(OrganizationViewSetMixin, viewsets.ModelViewSet)
     ordering_fields = ['completed_at', 'created_at']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().filter(is_deleted=False).select_related('enrollment', 'enrollment__program', 'enrollment__employee')
 
         if self.request.user.is_superuser or self.request.user.is_org_admin or self.request.user.is_organization_admin():
             return queryset
 
-        employee = getattr(self.request.user, 'employee', None)
+        employee = getattr(self.request, 'employee', None)
         if employee:
             return queryset.filter(enrollment__employee=employee)
 

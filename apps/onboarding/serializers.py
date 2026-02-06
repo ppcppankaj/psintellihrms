@@ -24,6 +24,21 @@ class OnboardingTaskTemplateSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            self.fields['depends_on'].queryset = OnboardingTaskTemplate.objects.filter(
+                organization=request.organization
+            )
+            # assigned_to_role is from abac - roles are often global but can be tenant-specific
+            # if they are OrganizationEntity, they should be filtered.
+            # Assuming Role is organization-scoped based on previous audit.
+            from apps.abac.models import Role
+            self.fields['assigned_to_role'].queryset = Role.objects.filter(
+                organization=request.organization
+            )
 
 
 class OnboardingTemplateListSerializer(serializers.ModelSerializer):
@@ -42,6 +57,18 @@ class OnboardingTemplateListSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            from apps.employees.models import Department, Designation
+            self.fields['department'].queryset = Department.objects.filter(
+                organization=request.organization
+            )
+            self.fields['designation'].queryset = Designation.objects.filter(
+                organization=request.organization
+            )
     
     def get_task_count(self, obj):
         return obj.tasks.count()
@@ -75,6 +102,15 @@ class OnboardingDocumentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'verified_by', 'verified_at', 'created_at', 'updated_at']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            from apps.employees.models import Employee
+            self.fields['verified_by'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+
 
 class OnboardingTaskProgressSerializer(serializers.ModelSerializer):
     """Serializer for task progress"""
@@ -101,6 +137,18 @@ class OnboardingTaskProgressSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'stage', 'is_mandatory',
             'due_date', 'task_template', 'created_at', 'updated_at'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            from apps.employees.models import Employee
+            self.fields['assigned_to'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+            self.fields['completed_by'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
     
     def get_is_overdue(self, obj):
         from django.utils import timezone
@@ -136,6 +184,24 @@ class EmployeeOnboardingListSerializer(serializers.ModelSerializer):
             'id', 'total_tasks', 'completed_tasks', 'progress_percentage',
             'created_at', 'updated_at'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'organization'):
+            from apps.employees.models import Employee
+            self.fields['employee'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+            self.fields['template'].queryset = OnboardingTemplate.objects.filter(
+                organization=request.organization
+            )
+            self.fields['hr_responsible'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
+            self.fields['buddy'].queryset = Employee.objects.filter(
+                organization=request.organization
+            )
 
 
 class EmployeeOnboardingDetailSerializer(EmployeeOnboardingListSerializer):
