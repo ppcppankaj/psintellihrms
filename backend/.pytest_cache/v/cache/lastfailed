@@ -1,0 +1,3 @@
+{
+  "apps/core/tests/test_branch_permissions.py": true
+}

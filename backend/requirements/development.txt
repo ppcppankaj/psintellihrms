@@ -1,0 +1,13 @@
+# Development requirements
+-r base.txt
+
+# Debug toolbar
+django-debug-toolbar>=4.2
+
+# Dev server
+watchfiles>=0.21
+
+# Documentation
+mkdocs>=1.5
+mkdocs-material>=9.5
+
