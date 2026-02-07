@@ -119,8 +119,14 @@ class OrganizationManager(models.Manager):
                     "Organization context is required in production. "
                     "All queries must have organization set via middleware or explicitly."
                 )
+            
+            # 🛡️ MIGRATION SAFETY: Don't log spam during management commands
+            import sys
+            is_management_cmd = any(cmd in sys.argv for cmd in ['makemigrations', 'migrate', 'collectstatic', 'check'])
+            
             # In development, return unfiltered queryset for debugging
-            logger.warning("No organization context set - returning unfiltered queryset")
+            if not is_management_cmd:
+                logger.warning("No organization context set - returning unfiltered queryset")
             return qs
         
         return qs.filter(organization_id=org.id)

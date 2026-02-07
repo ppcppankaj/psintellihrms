@@ -1,29 +1,69 @@
 """
-Organization Middleware - NEW Multi-Tenancy Implementation
-Replaces UnifiedTenantMiddleware from schema-based architecture
+Organization Middleware - Production Ready Multi-Tenancy Implementation
 
-CRITICAL: Uses contextvars for async safety (not threading.local)
+CRITICAL:
+- Async-safe (contextvars)
+- Migration-safe
+- Oracle VM / Docker safe
+- PostgreSQL RLS compatible
 """
 
+import sys
+import logging
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
-from django.db import connection
 from django.conf import settings
-import logging
+from django.db import connection
 
 logger = logging.getLogger(__name__)
+
+# ----------------------------------------------------------------------
+# Utilities
+# ----------------------------------------------------------------------
+
+COMMANDS_TO_SKIP = {
+    'makemigrations',
+    'migrate',
+    'shell',
+    'createsuperuser',
+    'collectstatic',
+    'check',
+    'loaddata',
+    'dumpdata',
+    'flush',
+    'test',
+}
+
+
+def is_management_command():
+    return any(cmd in sys.argv for cmd in COMMANDS_TO_SKIP)
+
+
+def is_public_path(path: str) -> bool:
+    """
+    Strict public-path matcher (prevents security bypass).
+    """
+    PUBLIC_PATHS = (
+        '/api/docs',
+        '/api/redoc',
+        '/api/schema',
+        '/api/health',
+        '/admin',
+        '/static',
+        '/media',
+    )
+    return any(
+        path == p or path.startswith(p + '/')
+        for p in PUBLIC_PATHS
+    )
 
 
 def log_superuser_org_switch(user, organization, request=None):
     """
-    Audit log when superuser switches organization context.
-    Required for compliance and security monitoring.
+    Audit log when a superuser switches organization context.
     """
-    from apps.core.models import Organization
-    
     logger.warning(
-        f"SUPERUSER_ORG_SWITCH: {user.email} (id={user.id}) "
-        f"switched to organization {organization.name} (id={organization.id})",
+        "superuser_org_switch",
         extra={
             'event': 'superuser_org_switch',
             'user_id': str(user.id),
@@ -35,222 +75,182 @@ def log_superuser_org_switch(user, organization, request=None):
     )
 
 
+# ----------------------------------------------------------------------
+# Middleware
+# ----------------------------------------------------------------------
+
 class OrganizationMiddleware(MiddlewareMixin):
     """
-    Sets current organization based on authenticated user.
-    
-    Features:
-    - Uses contextvars (async-safe)
-    - Validates organization is active and subscription valid
-    - Supports PostgreSQL RLS for database-level isolation
-    - Allows superusers to switch organization context via header
-    - Audit logs all superuser context switches
-    
+    Resolves and enforces organization context.
+
     MUST run AFTER AuthenticationMiddleware.
     """
-    
-    # Paths that don't require organization context
-    PUBLIC_PATHS = [
-        '/api/docs/',
-        '/api/redoc/',
-        '/api/schema/',
-        '/api/health/',
-        '/admin/',
-        '/static/',
-        '/media/',
-    ]
-    
+
     def process_request(self, request):
-        try:
-            from apps.core.models import Organization
-            from apps.core.context import set_current_organization, set_current_user, clear_context
-            from django.conf import settings
-            from django.db import connection
-            
-            # TRACE LOG
-            logger.info(f"TRACE: OrganizationMiddleware processing {request.path}")
+        from apps.core.context import (
+            set_current_organization,
+            set_current_user,
+            clear_context,
+        )
 
-            # Clear previous context (async-safe)
-            clear_context()
-            
-            # Initialize organization to None (REQUIRED for subsequent middleware)
-            request.organization = None
-            
-            # Skip organization enforcement during management commands
-            import sys
-            COMMANDS_TO_SKIP = [
-                'migrate', 'makemigrations', 'shell', 'createsuperuser',
-                'collectstatic', 'check', 'loaddata', 'dumpdata', 'test'
-            ]
-            if len(sys.argv) > 1 and sys.argv[1] in COMMANDS_TO_SKIP:
-                logger.info(f"TRACE: OrganizationMiddleware skipping for management command: {sys.argv[1]}")
-                return None
+        # Always start clean (async-safe)
+        clear_context()
+        request.organization = None
 
-            # Check if path is public
-            if any(request.path.startswith(path) for path in self.PUBLIC_PATHS):
-                logger.info("TRACE: OrganizationMiddleware skipping public path")
-                return None
-            
-            # Set user context
-            if hasattr(request, 'user') and request.user.is_authenticated:
-                logger.info(f"TRACE: OrganizationMiddleware user is authenticated: {request.user.email}")
-                set_current_user(request.user)
-                
-                # Set organization from user
-                if hasattr(request.user, 'organization') and request.user.organization:
-                    org = request.user.organization
-                    logger.info(f"TRACE: OrganizationMiddleware found user org: {org.name}")
-                    
-                    # Validate organization is active
-                    if not org.is_active:
-                        logger.warning(
-                            f"User {request.user.email} attempted to access inactive organization {org.name}",
-                            extra={
-                                'user_id': str(request.user.id),
-                                'organization_id': str(org.id),
-                                'event': 'inactive_organization_access'
-                            }
+        # ------------------------------------------------------------------
+        # Skip management commands (CRITICAL for migrations)
+        # ------------------------------------------------------------------
+        if is_management_command():
+            logger.debug("OrganizationMiddleware skipped for management command")
+            return None
+
+        # ------------------------------------------------------------------
+        # Skip public paths
+        # ------------------------------------------------------------------
+        if is_public_path(request.path):
+            logger.debug("OrganizationMiddleware skipped public path: %s", request.path)
+            return None
+
+        # ------------------------------------------------------------------
+        # Skip unauthenticated users
+        # ------------------------------------------------------------------
+        if not getattr(request, 'user', None) or not request.user.is_authenticated:
+            logger.debug("OrganizationMiddleware unauthenticated request")
+            return None
+
+        # ------------------------------------------------------------------
+        # Set user context
+        # ------------------------------------------------------------------
+        set_current_user(request.user)
+        logger.debug("Authenticated user: %s", request.user.email)
+
+        from apps.core.models import Organization
+
+        # ------------------------------------------------------------------
+        # User has organization
+        # ------------------------------------------------------------------
+        if getattr(request.user, 'organization', None):
+            org = request.user.organization
+
+            if not org.is_active:
+                logger.warning(
+                    "inactive_organization_access",
+                    extra={
+                        'event': 'inactive_organization_access',
+                        'user_id': str(request.user.id),
+                        'organization_id': str(org.id),
+                    }
+                )
+                return JsonResponse(
+                    {'error': 'Organization is inactive', 'code': 'ORG_INACTIVE'},
+                    status=403,
+                )
+
+            if org.subscription_status in {'suspended', 'cancelled'}:
+                logger.warning(
+                    "inactive_subscription_access",
+                    extra={
+                        'event': 'inactive_subscription_access',
+                        'user_id': str(request.user.id),
+                        'organization_id': str(org.id),
+                        'subscription_status': org.subscription_status,
+                    }
+                )
+                return JsonResponse(
+                    {
+                        'error': 'Organization subscription inactive',
+                        'subscription_status': org.subscription_status,
+                        'code': 'SUBSCRIPTION_INACTIVE',
+                    },
+                    status=403,
+                )
+
+            set_current_organization(org)
+            request.organization = org
+
+            # PostgreSQL RLS support
+            if getattr(settings, 'ENABLE_POSTGRESQL_RLS', False):
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            "SET LOCAL app.current_organization_id = %s",
+                            [str(org.id)],
                         )
-                        return JsonResponse({
-                            'error': 'Organization is not active',
-                            'code': 'ORGANIZATION_INACTIVE'
-                        }, status=403)
-                    
-                    # Validate subscription status
-                    if org.subscription_status in ['suspended', 'cancelled']:
-                        logger.warning(
-                            f"User {request.user.email} attempted to access organization with {org.subscription_status} subscription",
-                            extra={
-                                'user_id': str(request.user.id),
-                                'organization_id': str(org.id),
-                                'subscription_status': org.subscription_status,
-                                'event': 'inactive_subscription_access'
-                            }
-                        )
-                        return JsonResponse({
-                            'error': f'Organization subscription is {org.subscription_status}',
-                            'code': 'SUBSCRIPTION_INACTIVE',
-                            'subscription_status': org.subscription_status
-                        }, status=403)
-                    
-                    # Set organization context
+                except Exception:
+                    logger.exception("Failed to set PostgreSQL RLS context")
+
+            return None
+
+        # ------------------------------------------------------------------
+        # Superuser without organization
+        # ------------------------------------------------------------------
+        if request.user.is_superuser:
+            org_id = (
+                request.headers.get('X-Organization-ID')
+                or request.headers.get('X-Tenant-Id')
+            )
+
+            if org_id:
+                try:
+                    org = Organization.objects.get(id=org_id, is_active=True)
+
+                    log_superuser_org_switch(request.user, org, request)
+
                     set_current_organization(org)
                     request.organization = org
-                    
-                    # Set PostgreSQL RLS context variable for database-level isolation
+
                     if getattr(settings, 'ENABLE_POSTGRESQL_RLS', False):
                         try:
                             with connection.cursor() as cursor:
-                                # LOCAL = only for this transaction
                                 cursor.execute(
                                     "SET LOCAL app.current_organization_id = %s",
-                                    [str(org.id)]
+                                    [str(org.id)],
                                 )
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to set PostgreSQL RLS context: {e}",
-                                extra={
-                                    'organization_id': str(org.id),
-                                    'error': str(e)
-                                }
-                            )
-                            # Don't fail the request, but log for monitoring
-                
-                else:
-                    # User without organization
-                    logger.info("TRACE: OrganizationMiddleware user has NO organization")
-                    if request.user.is_superuser:
-                        # Superuser can work without organization context
-                        logger.info("TRACE: OrganizationMiddleware allowing superuser")
-                        
-                        # Allow X-Organization-ID or X-Tenant-Id header to switch context
-                        org_id = request.headers.get('X-Organization-ID') or request.headers.get('X-Tenant-Id')
-                        
-                        if org_id:
-                            logger.info(f"TRACE: OrganizationMiddleware superuser switching to {org_id}")
-                            try:
-                                org = Organization.objects.get(id=org_id, is_active=True)
-                                
-                                # AUDIT LOG: Track superuser context switching
-                                log_superuser_org_switch(request.user, org, request)
-                                
-                                set_current_organization(org)
-                                request.organization = org
-                                
-                                # Set PostgreSQL RLS for superuser too
-                                if getattr(settings, 'ENABLE_POSTGRESQL_RLS', False):
-                                    try:
-                                        with connection.cursor() as cursor:
-                                            cursor.execute(
-                                                "SET LOCAL app.current_organization_id = %s",
-                                                [str(org.id)]
-                                            )
-                                    except Exception as e:
-                                        logger.error(f"Failed to set PostgreSQL RLS context for superuser: {e}")
-                            
-                            except Organization.DoesNotExist:
-                                logger.warning(
-                                    f"Superuser {request.user.email} attempted to switch to "
-                                    f"non-existent organization {org_id}",
-                                    extra={
-                                        'user_id': str(request.user.id),
-                                        'organization_id': org_id,
-                                        'event': 'invalid_org_switch'
-                                    }
-                                )
-                                return JsonResponse({
-                                    'error': 'Invalid organization ID',
-                                    'code': 'INVALID_ORGANIZATION'
-                                }, status=400)
-                            
-                            except Exception as e:
-                                logger.error(f"Error switching organization context: {e}")
-                                return JsonResponse({
-                                    'error': 'Internal server error',
-                                    'code': 'INTERNAL_ERROR'
-                                }, status=500)
-                        
-                        # Allow superuser to proceed without organization context
-                        return None
-                    
-                    else:
-                        # Regular user without organization - not allowed
-                        logger.warning(
-                            f"TRACE: Regular User {request.user.email} does not belong to any organization"
-                        )
-                        return JsonResponse({
-                            'error': 'User does not belong to any organization',
-                            'code': 'NO_ORGANIZATION'
-                        }, status=403)
-            else:
-                 logger.info("TRACE: OrganizationMiddleware user NOT authenticated yet (or Anonymous)")
-            
+                        except Exception:
+                            logger.exception("Failed to set RLS for superuser")
+
+                except Organization.DoesNotExist:
+                    logger.warning(
+                        "invalid_org_switch",
+                        extra={
+                            'event': 'invalid_org_switch',
+                            'user_id': str(request.user.id),
+                            'organization_id': org_id,
+                        }
+                    )
+                    return JsonResponse(
+                        {'error': 'Invalid organization ID', 'code': 'INVALID_ORG'},
+                        status=400,
+                    )
+
+            # Superuser allowed without org
             return None
 
-        except Exception as e:
-            logger.error(f"OrganizationMiddleware CRASH: {e}", exc_info=True)
-            # Return 500 in development for easier debugging
-            if getattr(settings, 'DEBUG', False):
-                import traceback
-                return JsonResponse({
-                    'error': str(e),
-                    'traceback': traceback.format_exc(),
-                    'source': 'OrganizationMiddleware'
-                }, status=500)
-            return JsonResponse({'error': 'Internal server error'}, status=500)
-    
+        # ------------------------------------------------------------------
+        # Regular user without organization (BLOCK)
+        # ------------------------------------------------------------------
+        logger.warning(
+            "user_without_organization",
+            extra={
+                'event': 'user_without_organization',
+                'user_id': str(request.user.id),
+            }
+        )
+        return JsonResponse(
+            {'error': 'User has no organization', 'code': 'NO_ORG'},
+            status=403,
+        )
+
+    # ------------------------------------------------------------------
+    # Cleanup (async-safe)
+    # ------------------------------------------------------------------
+
     def process_response(self, request, response):
         from apps.core.context import clear_context
-        
-        # Cleanup context after request (async-safe)
         clear_context()
-        
         return response
-    
+
     def process_exception(self, request, exception):
         from apps.core.context import clear_context
-        
-        # Cleanup context on exception too
         clear_context()
-        
         return None

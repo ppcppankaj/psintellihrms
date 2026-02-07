@@ -13,10 +13,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements/base.txt requirements/base.txt
-COPY requirements/development.txt requirements/development.txt
+COPY requirements/production.txt requirements/production.txt
 
 RUN pip install --upgrade pip \
-    && pip install -r requirements/development.txt
+    && pip install -r requirements/production.txt
 
 COPY . .
 

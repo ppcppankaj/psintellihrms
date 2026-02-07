@@ -4,7 +4,6 @@ Django Settings - Production Configuration
 
 from .base import *
 from decouple import config
-import uuid
 
 DEBUG = False
 
@@ -14,7 +13,7 @@ DEBUG = False
 
 SECURE_SSL_REDIRECT = True
 
-SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
@@ -30,14 +29,11 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 
-# Correct proxy header (important behind Nginx / ALB / Cloudflare)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# Referrer Policy
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # ============================================================================
-# REST FRAMEWORK – STRONGER THROTTLING
+# REST FRAMEWORK – THROTTLING
 # ============================================================================
 
 REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
@@ -48,11 +44,11 @@ REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
 REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
     'anon': '50/hour',
     'user': '500/hour',
-    'login': '5/min',
+    'login': '5/min',  # ensure throttle_scope is set
 }
 
 # ============================================================================
-# LOGGING WITH CORRELATION ID
+# LOGGING (JSON, PROD)
 # ============================================================================
 
 LOGGING = {

@@ -12,7 +12,7 @@ from django.conf import settings
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.core.exceptions import ValidationError, ImproperlyConfigured, PermissionDenied
-from apps.core.logging import _thread_locals
+from apps.core.logging import set_correlation_id
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.core.models import Organization
@@ -152,7 +152,7 @@ class CorrelationIdMiddleware:
         correlation_id = request.headers.get(
             'X-Correlation-ID', str(uuid.uuid4())
         )
-        _thread_locals.correlation_id = correlation_id
+        set_correlation_id(correlation_id)
         response = self.get_response(request)
         response['X-Correlation-ID'] = correlation_id
         return response

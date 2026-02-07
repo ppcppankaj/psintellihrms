@@ -14,6 +14,9 @@ echo "✅ Postgres ready"
 # Migrate
 python manage.py migrate --noinput
 
+python manage.py collectstatic --noinput
+
+
 case "$1" in
   web|"")
     exec python manage.py runserver 0.0.0.0:8000
