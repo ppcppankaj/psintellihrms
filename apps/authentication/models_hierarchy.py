@@ -29,12 +29,18 @@ class OrganizationUser(models.Model):
         related_name='organization_memberships',
         db_index=True
     )
-    organization = models.ForeignKey(
-        'core.Organization',
-        on_delete=models.CASCADE,
-        related_name='user_memberships',
-        db_index=True
+    organization_id = models.UUIDField(
+        db_index=True,
+        help_text="Organization ID"
     )
+
+    @property
+    def organization(self):
+        try:
+            from apps.core.models import Organization
+            return Organization.objects.get(id=self.organization_id)
+        except:
+            return None
     role = models.CharField(
         max_length=20,
         choices=RoleChoices.choices,
@@ -56,15 +62,15 @@ class OrganizationUser(models.Model):
     
     class Meta:
         db_table = 'organization_users'
-        unique_together = [('user', 'organization')]
+        unique_together = [('user', 'organization_id')]
         indexes = [
             models.Index(fields=['user', 'is_active']),
-            models.Index(fields=['organization', 'role', 'is_active']),
+            models.Index(fields=['organization_id', 'role', 'is_active']),
         ]
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.user.email} - {self.organization.name} ({self.get_role_display()})"
+        return f"{self.user.email} - {self.organization_id} ({self.get_role_display()})"
     
     def clean(self):
         """
@@ -96,13 +102,18 @@ class Branch(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        'core.Organization',
-        on_delete=models.CASCADE,
-        related_name='branches',
+    organization_id = models.UUIDField(
         db_index=True,
-        help_text='Parent organization'
+        help_text='Parent organization ID'
     )
+
+    @property
+    def organization(self):
+        try:
+            from apps.core.models import Organization
+            return Organization.objects.get(id=self.organization_id)
+        except:
+            return None
     
     # Basic Info
     name = models.CharField(max_length=255, db_index=True)
@@ -153,15 +164,15 @@ class Branch(models.Model):
     
     class Meta:
         db_table = 'branches'
-        unique_together = [('organization', 'name')]
+        unique_together = [('organization_id', 'name')]
         indexes = [
-            models.Index(fields=['organization', 'is_active']),
+            models.Index(fields=['organization_id', 'is_active']),
             models.Index(fields=['name', 'is_active']),
         ]
         ordering = ['name']
     
     def __str__(self):
-        return f"{self.name} ({self.organization.name})"
+        return f"{self.name} ({self.organization_id})"
 
 
 class BranchUser(models.Model):

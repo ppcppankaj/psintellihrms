@@ -37,8 +37,8 @@ from .serializers import (
     TwoFactorVerifySerializer,
     UserSessionSerializer,
 )
-from apps.core.org_permissions import IsOrgAdminOrSuperuser
-from apps.core.tenant_guards import OrganizationViewSetMixin
+# from apps.core.org_permissions import IsOrgAdminOrSuperuser
+# from apps.core.tenant_guards import OrganizationViewSetMixin
 
 
 # =====================================================
@@ -67,7 +67,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 user = User.objects.get(email=email)
                 
                 # 🔒 Enforce org binding
-                if not user.is_superuser and not user.organization:
+                if not user.is_superuser and not user.organization_id:
                     from django.core.exceptions import PermissionDenied
                     raise PermissionDenied("User is not assigned to an organization")
 
@@ -269,7 +269,15 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     🔒 Tenant-safe user management
     """
     queryset = User.objects.none()
-    permission_classes = [IsAuthenticated, IsOrgAdminOrSuperuser]
+    # permission_classes = [IsAuthenticated, IsOrgAdminOrSuperuser]
+    permission_classes = [IsAuthenticated]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        from apps.core.org_permissions import IsOrgAdminOrSuperuser
+        permission = IsOrgAdminOrSuperuser()
+        if not permission.has_permission(request, self):
+            self.permission_denied(request, message=getattr(permission, 'message', None))
 
     def get_queryset(self):
         user = self.request.user
@@ -277,8 +285,8 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         if user.is_superuser:
             return User.objects.filter()
 
-        if user.is_org_admin and user.organization:
-            return User.objects.filter(organization=user.organization)
+        if user.is_org_admin and user.organization_id:
+            return User.objects.filter(organization_id=user.organization_id)
 
         return User.objects.none()
 
@@ -298,7 +306,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         if target_user == request.user and request.user.is_org_admin:
             raise PermissionDenied("Organization admins cannot modify their own account")
 
-        if "organization" in request.data and not request.user.is_superuser:
+        if "organization_id" in request.data and not request.user.is_superuser:
             raise PermissionDenied("Only superusers can change organization")
 
         if any(

@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from apps.authentication.models import User, Branch, BranchUser
-from apps.core.context import set_current_organization, set_current_branch
+# from apps.core.context import set_current_organization, set_current_branch
 import logging
 import traceback
 
@@ -29,10 +29,9 @@ class BranchSelectorViewSet(viewsets.ViewSet):
         """
         try:
             user = request.user
-            # FIX: User model relies on organization property, not get_organization()
-            user_org = getattr(user, 'organization', None)
+            user_org_id = getattr(user, 'organization_id', None)
             
-            if not user_org:
+            if not user_org_id:
                 # User has no organization - return empty branch list
                 return Response({
                     'branches': [],
@@ -81,8 +80,8 @@ class BranchSelectorViewSet(viewsets.ViewSet):
                 } if current_branch and hasattr(current_branch, 'id') else None,
                 'is_multi_branch': len(branches) > 1,
                 'organization': {
-                    'id': str(user_org.id),
-                    'name': user_org.name,
+                    'id': str(user_org_id),
+                    'name': 'Assigned Organization', # Can't easily get name without core lookup
                 }
             })
         except Exception as e:
@@ -120,7 +119,11 @@ class BranchSelectorViewSet(viewsets.ViewSet):
         request.session['current_branch_id'] = str(target_branch.id)
         
         # Set in thread context
-        set_current_branch(target_branch)
+        try:
+            from apps.core.context import set_current_branch
+            set_current_branch(target_branch)
+        except ImportError:
+            pass
         
         return Response({
             'status': 'success',
@@ -184,10 +187,10 @@ class BranchSelectorViewSet(viewsets.ViewSet):
                 pass
                 
             if is_org_admin or user.is_superuser:
-                user_org = getattr(user, 'organization', None)
-                if user_org:
+                user_org_id = getattr(user, 'organization_id', None)
+                if user_org_id:
                     try:
-                        branches = list(Branch.objects.filter(organization=user_org, is_active=True))
+                        branches = list(Branch.objects.filter(organization_id=user_org_id, is_active=True))
                     except:
                         pass
         

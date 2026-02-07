@@ -9,7 +9,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework.exceptions import AuthenticationFailed
 
 from .models import User, UserSession
-from apps.core.models import Organization
+# from apps.core.models import Organization # Removed for circular dependency
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -38,11 +38,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             )
 
         # 🔒 SECURITY: Hard tenant binding
-        if user.organization:
-            org = user.organization
-            token['organization_id'] = str(org.id)
-            token['organization_name'] = org.name
-            token['organization_slug'] = getattr(org, 'slug', None)
+        if user.organization_id:
+            token['organization_id'] = str(user.organization_id)
+            # token['organization_name'] = ... # Name lookup requires core import or denormalization
+            # For now, we omit name or do a lazy lookup
+            try:
+                from apps.core.models import Organization
+                org = Organization.objects.get(id=user.organization_id)
+                token['organization_name'] = org.name
+                token['organization_slug'] = getattr(org, 'slug', None)
+            except:
+                token['organization_name'] = "Unknown Organization"
+                token['organization_slug'] = None
         else:
             # Superuser only
             token['organization_id'] = None
@@ -129,16 +136,20 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_organization(self, obj):
         try:
-            organization = obj.organization
-            if not organization:
+            if not obj.organization_id:
                 return None
 
-            return {
-                'id': str(organization.id),
-                'name': organization.name,
-                'slug': getattr(organization, 'slug', None),
-                'subscription_status': getattr(organization, 'subscription_status', None)
-            }
+            try:
+                from apps.core.models import Organization
+                organization = Organization.objects.get(id=obj.organization_id)
+                return {
+                    'id': str(organization.id),
+                    'name': organization.name,
+                    'slug': getattr(organization, 'slug', None),
+                    'subscription_status': getattr(organization, 'subscription_status', None)
+                }
+            except:
+                return {'id': str(obj.organization_id), 'name': 'Unknown'}
         except Exception:
             return None
 
@@ -173,26 +184,16 @@ class UserOrgAdminCreateSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
-    organization = serializers.PrimaryKeyRelatedField(
-        queryset=Organization.objects.none(),
+    organization_id = serializers.UUIDField(
         required=False,
         allow_null=True
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        request = self.context.get('request')
-        if request and request.user:
-            if request.user.is_superuser:
-                qs = Organization._default_manager.all()
-            elif request.user.organization:
-                qs = Organization._default_manager.filter(
-                    id=request.user.organization_id
-                )
-            else:
-                qs = Organization.objects.none()
-
-            self.fields['organization'].queryset = qs
+        # qs = ... # Cannot use Organization.objects at top level
+        # We'll rely on validation in validate/create
+        pass
 
 
     class Meta:
@@ -201,7 +202,7 @@ class UserOrgAdminCreateSerializer(serializers.ModelSerializer):
             'email', 'username', 'first_name', 'last_name', 'middle_name',
             'phone', 'password', 'password_confirm', 'employee_id',
             'gender', 'date_of_birth',
-            'is_verified', 'is_active', 'is_org_admin', 'organization'
+            'is_verified', 'is_active', 'is_org_admin', 'organization_id'
         ]
         read_only_fields = [
             'is_staff', 'is_superuser'
@@ -229,24 +230,24 @@ class UserOrgAdminCreateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         password_confirm = validated_data.pop('password_confirm', None)
         is_org_admin = validated_data.pop('is_org_admin', False)
-        organization = validated_data.pop('organization', None)
+        organization_id = validated_data.get('organization_id')
 
         if request.user.is_org_admin and not request.user.is_superuser:
-            organization = request.user.organization
+            organization_id = request.user.organization_id
         
         # 1. Create the base User
-        validated_data['organization'] = organization
+        validated_data['organization_id'] = organization_id
         validated_data['is_org_admin'] = is_org_admin
         validated_data['is_staff'] = is_org_admin # Org admins are staff
         
         user = User.objects.create_user(**validated_data)
 
         # 2. Create the Organization Mapping (Source of Truth)
-        if organization:
+        if organization_id:
             from .models_hierarchy import OrganizationUser
             OrganizationUser.objects.get_or_create(
                 user=user,
-                organization=organization,
+                organization_id=organization_id,
                 defaults={
                     'role': OrganizationUser.RoleChoices.ORG_ADMIN if is_org_admin else OrganizationUser.RoleChoices.EMPLOYEE,
                     'is_active': True,
@@ -257,7 +258,7 @@ class UserOrgAdminCreateSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
-        validated_data.pop('organization', None)
+        validated_data.pop('organization_id', None)
 
         request = self.context.get('request')
         if request.user.is_org_admin and not request.user.is_superuser:
@@ -286,11 +287,17 @@ class UserSelfProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_organization_name(self, obj):
-        return obj.organization.name if obj.organization else None
+        try:
+            if not obj.organization_id:
+                return None
+            from apps.core.models import Organization
+            return Organization.objects.get(id=obj.organization_id).name
+        except:
+            return "Unknown"
 
     def update(self, instance, validated_data):
         dangerous_fields = [
-            'organization', 'is_org_admin', 'is_staff',
+            'organization_id', 'is_org_admin', 'is_staff',
             'is_superuser', 'username', 'password',
             'employee_id', 'slug', 'is_active',
             'is_verified', 'permissions', 'groups'

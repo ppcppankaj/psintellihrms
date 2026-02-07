@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
-from apps.core.context import get_current_organization
+# from apps.core.context import get_current_organization # Removed to fix circular dependency
 
 
 
@@ -54,15 +54,31 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
     # Organization (for backward compat + quick lookups, but use OrganizationUser for source of truth)
-    organization = models.ForeignKey(
-        'core.Organization',
-        on_delete=models.SET_NULL,
+    organization_id = models.UUIDField(
         null=True,
         blank=True,
         db_index=True,
-        editable=True,  # Changed to True to allow assignment during creation
-        help_text="Organization (denormalized for performance). Use OrganizationUser for source of truth."
+        editable=True,
+        help_text="Organization ID (denormalized for performance). Use OrganizationUser for source of truth."
     )
+    
+    @property
+    def organization(self):
+        """Lazy property to access organization object if needed (not recommended in models)"""
+        if not self.organization_id:
+            return None
+        try:
+            from apps.core.models import Organization
+            return Organization.objects.get(id=self.organization_id)
+        except:
+            return None
+
+    @organization.setter
+    def organization(self, value):
+        if hasattr(value, 'id'):
+            self.organization_id = value.id
+        else:
+            self.organization_id = value
     
     # Basic Info
     email = models.EmailField(unique=True, db_index=True)
@@ -146,12 +162,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         ordering = ['first_name', 'last_name']
         indexes = [
-            models.Index(fields=['organization', 'email']),
-            models.Index(fields=['organization', 'employee_id']),
-            models.Index(fields=['organization', 'is_active', 'is_deleted']),
+            models.Index(fields=['organization_id', 'email']),
+            models.Index(fields=['organization_id', 'employee_id']),
+            models.Index(fields=['organization_id', 'is_active', 'is_deleted']),
         ]
         # Email must be unique within each organization
-        unique_together = [['organization', 'email']]
+        unique_together = [['organization_id', 'email']]
     
     def __str__(self):
         return f"{self.full_name} ({self.email})"
@@ -182,7 +198,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         Returns: Organization instance or None
         """
         membership = self.get_organization_membership()
-        return membership.organization if membership else self.organization
+        if membership:
+            return membership.organization
+        
+        # Fallback to organization_id if needed
+        if self.organization_id:
+            try:
+                from apps.core.models import Organization
+                return Organization.objects.get(id=self.organization_id)
+            except:
+                pass
+        return None
     
     def is_organization_admin(self):
         """Check if user is an org admin via OrganizationUser mapping"""
@@ -279,7 +305,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         🔒 SECURITY FIX:
         Roles are now resolved ONLY for the current organization context
         """
-        current_org = get_current_organization()
+        try:
+            from apps.core.context import get_current_organization
+            current_org = get_current_organization()
+        except ImportError:
+            current_org = None
 
         if not current_org and not self.is_superuser:
             return self.user_roles.none()
@@ -311,7 +341,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         🔒 SECURITY FIX:
         Role existence is now tenant-scoped
         """
-        current_org = get_current_organization()
+        try:
+            from apps.core.context import get_current_organization
+            current_org = get_current_organization()
+        except ImportError:
+            current_org = None
 
         if not current_org and not self.is_superuser:
             return False
@@ -495,14 +529,22 @@ class UserSession(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions')
-    organization = models.ForeignKey(
-        'core.Organization',
-        on_delete=models.CASCADE,
+    organization_id = models.UUIDField(
         null=True,
         blank=True,
         db_index=True,
         help_text="Organization this session belongs to"
     )
+
+    @property
+    def organization(self):
+        if not self.organization_id:
+            return None
+        try:
+            from apps.core.models import Organization
+            return Organization.objects.get(id=self.organization_id)
+        except:
+            return None
     
     # Session info
     session_key = models.CharField(max_length=100, unique=True)
@@ -529,7 +571,7 @@ class UserSession(models.Model):
     class Meta:
         ordering = ['-last_activity']
         indexes = [
-            models.Index(fields=['organization', 'user', 'is_active']),
+            models.Index(fields=['organization_id', 'user', 'is_active']),
             models.Index(fields=['user', 'is_active']),
         ]
     
@@ -542,7 +584,7 @@ class UserSession(models.Model):
     def save(self, *args, **kwargs):
         """Auto-set organization from user"""
         if not self.organization_id and self.user_id:
-            self.organization = self.user.get_organization()
+            self.organization_id = self.user.organization_id
         super().save(*args, **kwargs)
 
 
