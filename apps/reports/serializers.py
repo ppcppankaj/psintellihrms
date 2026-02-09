@@ -6,19 +6,31 @@ from .models import ReportTemplate, ScheduledReport, GeneratedReport, ReportExec
 class ReportTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReportTemplate
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'name', 'code', 'description', 'report_type',
+            'query_config', 'columns', 'filters', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 
 class ScheduledReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScheduledReport
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'template', 'schedule', 'recipients', 'format',
+            'last_run', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 
 class GeneratedReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = GeneratedReport
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'template', 'generated_by', 'filters_applied',
+            'file', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 
 class ReportExecutionSerializer(serializers.ModelSerializer):

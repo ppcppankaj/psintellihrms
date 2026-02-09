@@ -7,6 +7,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.exceptions import AuthenticationFailed
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 from .models import User, UserSession
 # from apps.core.models import Organization # Removed for circular dependency
@@ -125,15 +127,19 @@ class UserSerializer(serializers.ModelSerializer):
             'is_staff', 'is_org_admin', 'date_joined', 'last_login'
         ]
 
+    @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_org_admin(self, obj):
         return obj.is_organization_admin()
 
+    @extend_schema_field({'type': 'array', 'items': {'type': 'string'}})
     def get_roles(self, obj):
         return obj.get_role_codes()
 
+    @extend_schema_field({'type': 'array', 'items': {'type': 'string'}})
     def get_permissions(self, obj):
         return obj.get_all_permissions()
 
+    @extend_schema_field({'type': 'object', 'nullable': True, 'properties': {'id': {'type': 'string'}, 'name': {'type': 'string'}, 'slug': {'type': 'string', 'nullable': True}, 'subscription_status': {'type': 'string', 'nullable': True}}})
     def get_organization(self, obj):
         try:
             if not obj.organization_id:
@@ -286,6 +292,7 @@ class UserSelfProfileSerializer(serializers.ModelSerializer):
             'organization_name', 'date_joined', 'last_login'
         ]
 
+    @extend_schema_field({'type': 'string', 'nullable': True})
     def get_organization_name(self, obj):
         try:
             if not obj.organization_id:

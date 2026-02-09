@@ -3,6 +3,8 @@ Employee Serializers
 """
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 from .models import (
     Employee, Department, Designation, Location,
@@ -30,6 +32,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
 
+    @extend_schema_field(OpenApiTypes.INT)
     def get_employee_count(self, obj):
         return obj.employees.filter(is_active=True).count()
 
@@ -82,8 +85,11 @@ class EmployeeListSerializer(serializers.ModelSerializer):
 class SkillSerializer(serializers.ModelSerializer):
     class Meta:
         model = Skill
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = [
+            'id', 'organization', 'name', 'category', 'description',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 class EmployeeSkillSerializer(serializers.ModelSerializer):
     skill_name = serializers.CharField(source='skill.name', read_only=True)
@@ -95,8 +101,12 @@ class EmployeeSkillSerializer(serializers.ModelSerializer):
 class EmployeeAddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeAddress
-        fields = '__all__'
-        read_only_fields = ['id']
+        fields = [
+            'id', 'organization', 'employee', 'address_type',
+            'address_line1', 'address_line2', 'city', 'state', 'country', 'postal_code',
+            'is_primary', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -109,8 +119,12 @@ class EmployeeAddressSerializer(serializers.ModelSerializer):
 class EmployeeBankAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeBankAccount
-        fields = '__all__'
-        read_only_fields = ['id']
+        fields = [
+            'id', 'organization', 'employee',
+            'account_holder_name', 'bank_name', 'branch_name', 'account_number', 'ifsc_code',
+            'account_type', 'is_primary', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -123,8 +137,12 @@ class EmployeeBankAccountSerializer(serializers.ModelSerializer):
 class EmergencyContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmergencyContact
-        fields = '__all__'
-        read_only_fields = ['id']
+        fields = [
+            'id', 'organization', 'employee',
+            'name', 'relationship', 'phone', 'alternate_phone', 'email', 'address',
+            'is_primary', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -137,8 +155,13 @@ class EmergencyContactSerializer(serializers.ModelSerializer):
 class EmployeeDependentSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeDependent
-        fields = '__all__'
-        read_only_fields = ['id']
+        fields = [
+            'id', 'organization', 'employee',
+            'name', 'relationship', 'date_of_birth', 'gender',
+            'is_covered_in_insurance', 'is_disabled',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -156,16 +179,31 @@ class EmploymentHistorySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = EmploymentHistory
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at']
+        fields = [
+            'id', 'organization', 'employee', 'change_type', 'effective_date',
+            'previous_department', 'previous_department_name',
+            'previous_designation', 'previous_designation_name',
+            'previous_location', 'previous_manager',
+            'new_department', 'new_department_name',
+            'new_designation', 'new_designation_name',
+            'new_location', 'new_manager',
+            'remarks', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 class DocumentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Document
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'file_size', 'file_type']
+        fields = [
+            'id', 'organization', 'employee', 'document_type',
+            'name', 'description', 'file', 'file_url', 'file_size', 'file_type',
+            'is_verified', 'verified_by', 'verified_at',
+            'expiry_date', 'is_confidential',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'file_size', 'file_type', 'created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -178,6 +216,7 @@ class DocumentSerializer(serializers.ModelSerializer):
                 organization=request.organization
             )
 
+    @extend_schema_field({'type': 'string', 'format': 'uri', 'nullable': True})
     def get_file_url(self, obj):
         if obj.file:
             request = self.context.get('request')
@@ -193,8 +232,15 @@ class CertificationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Certification
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'verified_by', 'verified_at']
+        fields = [
+            'id', 'organization', 'employee',
+            'name', 'issuing_organization', 'credential_id', 'credential_url',
+            'issue_date', 'expiry_date', 'is_expired',
+            'is_verified', 'verified_by', 'verified_at',
+            'certificate_file', 'certificate_file_url',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'is_verified', 'verified_by', 'verified_at', 'created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -207,6 +253,7 @@ class CertificationSerializer(serializers.ModelSerializer):
                 organization=request.organization
             )
 
+    @extend_schema_field({'type': 'string', 'format': 'uri', 'nullable': True})
     def get_certificate_file_url(self, obj):
         if obj.certificate_file:
             request = self.context.get('request')
@@ -238,7 +285,11 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = [
-            'employee_id', 'skills', 'bank_account', 'salary_structure'
+            'employee_id', 'email', 'first_name', 'last_name', 'phone',
+            'password', 'role_ids',
+            'skills', 'bank_account', 'salary_structure',
+            'department', 'designation', 'location', 'reporting_manager',
+            'employment_type', 'date_of_joining', 'branch'
         ]
 
     def __init__(self, *args, **kwargs):
@@ -263,7 +314,10 @@ class EmployeeUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = [
-            'skills', 'bank_account', 'salary_structure'
+            'first_name', 'last_name', 'role_ids',
+            'skills', 'bank_account', 'salary_structure',
+            'department', 'designation', 'location', 'reporting_manager',
+            'employment_type', 'employment_status', 'branch'
         ]
 
     def __init__(self, *args, **kwargs):
@@ -316,6 +370,7 @@ class OrgChartSerializer(serializers.ModelSerializer):
         model = Employee
         fields = ['id', 'name', 'title', 'avatar', 'children']
     
+    @extend_schema_field({'type': 'array', 'items': {'type': 'object'}})
     def get_children(self, obj):
         if hasattr(obj, 'direct_reports'):
              return OrgChartSerializer(obj.direct_reports.filter(is_active=True), many=True).data

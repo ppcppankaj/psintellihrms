@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import (
     EmployeeSalary, PayrollRun, Payslip, TaxDeclaration, ReimbursementClaim,
     EmployeeLoan, LoanRepayment
@@ -11,8 +13,17 @@ class EmployeeSalarySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EmployeeSalary
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = [
+            'id', 'organization', 'employee', 'employee_name',
+            'effective_from', 'effective_to', 'is_active',
+            'basic', 'hra', 'da', 'special_allowance', 'conveyance', 'medical_allowance', 'lta',
+            'other_allowances', 'performance_bonus', 'variable_pay', 'arrears',
+            'pf_employee', 'esi_employee', 'professional_tax', 'tds', 'other_deductions',
+            'pf_employer', 'esi_employer', 'gratuity',
+            'annual_ctc', 'monthly_gross', 'total_deductions', 'net_salary',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'annual_ctc', 'monthly_gross', 'total_deductions', 'net_salary', 'created_at', 'updated_at']
 
 
 class PayrollRunSerializer(serializers.ModelSerializer):
@@ -95,8 +106,13 @@ class ReimbursementClaimSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ReimbursementClaim
-        fields = '__all__'
-        read_only_fields = ['id', 'status', 'submitted_at', 'approved_at', 'paid_at', 'created_at', 'updated_at']
+        fields = [
+            'id', 'organization', 'employee', 'employee_details',
+            'title', 'amount', 'description', 'bill',
+            'status', 'status_display', 'submitted_at', 'approved_at', 'paid_at',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'status', 'submitted_at', 'approved_at', 'paid_at', 'created_at', 'updated_at']
 
 
 class SalaryRevisionSerializer(serializers.ModelSerializer):
@@ -113,6 +129,7 @@ class SalaryRevisionSerializer(serializers.ModelSerializer):
             'revision_type', 'created_at'
         ]
 
+    @extend_schema_field({'type': 'string', 'enum': ['initial', 'increment', 'decrement', 'restructure']})
     def get_revision_type(self, obj):
         previous = EmployeeSalary.objects.filter(
             employee=obj.employee,
@@ -149,9 +166,17 @@ class EmployeeLoanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EmployeeLoan
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'employee', 'employee_details',
+            'loan_type', 'loan_type_display', 'principal_amount', 'interest_rate', 'tenure_months',
+            'emi_amount', 'total_repayable', 'amount_repaid', 'outstanding_balance',
+            'status', 'status_display', 'reason',
+            'applied_at', 'approved_at', 'disbursed_at', 'closed_at', 'approved_by',
+            'deduct_from_salary', 'start_deduction_month', 'start_deduction_year',
+            'is_active', 'created_at', 'updated_at'
+        ]
         read_only_fields = [
-            'id', 'status', 'emi_amount', 'total_repayable', 'amount_repaid',
+            'id', 'organization', 'status', 'emi_amount', 'total_repayable', 'amount_repaid',
             'outstanding_balance', 'applied_at', 'approved_at', 'disbursed_at',
             'closed_at', 'approved_by', 'created_at', 'updated_at'
         ]
@@ -160,5 +185,8 @@ class EmployeeLoanSerializer(serializers.ModelSerializer):
 class LoanRepaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = LoanRepayment
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = [
+            'id', 'organization', 'loan', 'amount', 'repayment_date',
+            'payslip', 'remarks', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']

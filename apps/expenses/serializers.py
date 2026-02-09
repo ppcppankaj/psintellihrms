@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 from decimal import Decimal
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import (
     ExpenseCategory, ExpenseClaim, ExpenseItem, ExpenseApproval,
     EmployeeAdvance, AdvanceSettlement
@@ -78,6 +80,7 @@ class ExpenseClaimListSerializer(serializers.ModelSerializer):
             'total_paid_amount', 'created_at', 'updated_at'
         ]
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_item_count(self, obj):
         return obj.items.count()
 
@@ -175,6 +178,7 @@ class EmployeeAdvanceDetailSerializer(EmployeeAdvanceListSerializer):
             'disbursement_reference', 'disbursement_mode', 'settlements'
         ]
     
+    @extend_schema_field({'type': 'array', 'items': {'type': 'object'}})
     def get_settlements(self, obj):
         settlements = obj.settlements.all()
         return AdvanceSettlementSerializer(settlements, many=True).data

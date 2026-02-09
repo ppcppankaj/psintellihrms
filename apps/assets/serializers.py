@@ -3,6 +3,8 @@ Asset Management Serializers
 """
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import AssetCategory, Asset, AssetAssignment, AssetMaintenance, AssetRequest
 from apps.employees.models import Employee
 
@@ -16,6 +18,7 @@ class AssetCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'code', 'description', 'icon', 'asset_count']
         read_only_fields = ['id']
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_asset_count(self, obj):
         return obj.assets.count()
 
@@ -54,6 +57,7 @@ class AssetDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'current_assignee', 'created_at', 'updated_at']
     
+    @extend_schema_field({'type': 'array', 'items': {'type': 'object'}})
     def get_assignments(self, obj):
         recent = obj.assignments.select_related('employee')[:5]
         return AssetAssignmentSerializer(recent, many=True).data

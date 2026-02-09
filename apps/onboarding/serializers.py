@@ -1,6 +1,8 @@
 """Onboarding Serializers"""
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import (
     OnboardingTemplate, OnboardingTaskTemplate,
     EmployeeOnboarding, OnboardingTaskProgress, OnboardingDocument
@@ -70,6 +72,7 @@ class OnboardingTemplateListSerializer(serializers.ModelSerializer):
                 organization=request.organization
             )
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_task_count(self, obj):
         return obj.tasks.count()
 
@@ -150,6 +153,7 @@ class OnboardingTaskProgressSerializer(serializers.ModelSerializer):
                 organization=request.organization
             )
     
+    @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_overdue(self, obj):
         from django.utils import timezone
         if obj.status in ['completed', 'skipped']:

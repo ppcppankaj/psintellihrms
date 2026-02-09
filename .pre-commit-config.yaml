@@ -1,0 +1,37 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lint-serializers
+        name: Lint DRF Serializers
+        entry: python scripts/lint_serializers.py --path
+        language: system
+        files: ^apps/.*serializers\.py$
+        pass_filenames: false
+        args: [apps/]
+
+      - id: check-fields-all
+        name: Check for fields = '__all__'
+        entry: bash -c 'if grep -r "fields = .\\{0,1\\}__all__" apps/*/serializers.py; then echo "ERROR: fields = __all__ found"; exit 1; fi'
+        language: system
+        files: ^apps/.*serializers\.py$
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]

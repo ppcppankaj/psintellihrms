@@ -3,6 +3,8 @@ ABAC Serializers
 """
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import (
     AttributeType, Policy, PolicyRule, UserPolicy, 
     GroupPolicy, PolicyLog, Role, UserRole, Permission, RoleAssignment
@@ -52,9 +54,11 @@ class PolicySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_rules_count(self, obj):
         return obj.rules.filter(is_active=True).count()
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_assigned_users_count(self, obj):
         return obj.user_assignments.filter(is_active=True).count()
 
@@ -98,6 +102,7 @@ class GroupPolicySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_policies_count(self, obj):
         return obj.policies.filter(is_active=True).count()
 
@@ -139,6 +144,7 @@ class RoleSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_user_count(self, obj):
         return obj.user_assignments.filter(is_active=True).count()
 

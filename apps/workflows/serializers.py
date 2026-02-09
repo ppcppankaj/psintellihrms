@@ -4,13 +4,21 @@ Workflow Serializers
 
 from rest_framework import serializers
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import WorkflowDefinition, WorkflowStep, WorkflowInstance, WorkflowAction
 from apps.employees.serializers import EmployeeListSerializer
 
 class WorkflowStepSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkflowStep
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'workflow', 'order', 'name',
+            'approver_type', 'approver_role', 'approver_user',
+            'is_optional', 'can_delegate', 'sla_hours', 'escalate_to',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 
 class EscalateSerializer(serializers.Serializer):
@@ -27,14 +35,23 @@ class WorkflowDefinitionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = WorkflowDefinition
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'name', 'code', 'description', 'entity_type',
+            'steps', 'conditions', 'sla_hours', 'auto_approve_on_sla',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 class WorkflowActionSerializer(serializers.ModelSerializer):
     actor_details = EmployeeListSerializer(source='actor', read_only=True)
     
     class Meta:
         model = WorkflowAction
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'instance', 'step', 'actor', 'actor_details',
+            'action', 'comments', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 
 class WorkflowInstanceSerializer(serializers.ModelSerializer):
@@ -90,6 +107,7 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
                 pass
         return obj._cached_entity
     
+    @extend_schema_field(OpenApiTypes.STR)
     def get_request_type(self, obj):
         """Map entity_type to frontend request_type"""
         type_map = {
@@ -103,9 +121,11 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
         }
         return type_map.get(obj.entity_type, obj.entity_type)
     
+    @extend_schema_field(OpenApiTypes.STR)
     def get_request_id(self, obj):
         return str(obj.entity_id)
     
+    @extend_schema_field(OpenApiTypes.STR)
     def get_title(self, obj):
         """Generate a human-readable title"""
         entity = self._get_entity(obj)
@@ -119,12 +139,14 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
                 return entity.description[:50] if entity.description else 'No description'
         return f"{obj.entity_type.replace('_', ' ').title()} Request"
     
+    @extend_schema_field({'type': 'string', 'nullable': True})
     def get_description(self, obj):
         entity = self._get_entity(obj)
         if entity and hasattr(entity, 'reason'):
             return entity.reason
         return None
     
+    @extend_schema_field({'type': 'object', 'nullable': True, 'properties': {'id': {'type': 'string'}, 'employee_id': {'type': 'string'}, 'full_name': {'type': 'string'}, 'avatar': {'type': 'string', 'nullable': True}, 'department': {'type': 'string'}, 'designation': {'type': 'string'}}})
     def get_requester(self, obj):
         """Get the requester (employee who initiated the request)"""
         entity = self._get_entity(obj)
@@ -151,11 +173,13 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
             }
         return None
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_total_steps(self, obj):
         if obj.workflow:
             return obj.workflow.workflow_steps.count()
         return 1
     
+    @extend_schema_field({'type': 'string', 'enum': ['normal', 'urgent', 'high', 'low']})
     def get_priority(self, obj):
         """Determine priority based on SLA or entity urgency"""
         entity = self._get_entity(obj)
@@ -166,6 +190,7 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
             return 'urgent'
         return 'normal'
     
+    @extend_schema_field({'type': 'string', 'format': 'date-time', 'nullable': True})
     def get_sla_deadline(self, obj):
         if obj.workflow and obj.workflow.sla_hours:
             from datetime import timedelta
@@ -173,6 +198,7 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
             return deadline.isoformat()
         return None
     
+    @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_overdue(self, obj):
         if obj.workflow and obj.workflow.sla_hours:
             from datetime import timedelta
@@ -180,6 +206,7 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
             return timezone.now() > deadline and obj.status == 'in_progress'
         return False
     
+    @extend_schema_field({'type': 'array', 'items': {'type': 'object'}})
     def get_steps(self, obj):
         """Get workflow steps with status"""
         if not obj.workflow:

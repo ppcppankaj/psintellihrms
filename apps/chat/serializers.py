@@ -4,6 +4,8 @@ Chat Serializers
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db.models import Count
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import Conversation, ConversationParticipant, Message, MessageReaction
 
 User = get_user_model()
@@ -32,6 +34,7 @@ class MessageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'sender', 'created_at', 'updated_at']
     
+    @extend_schema_field({'type': 'object', 'additionalProperties': {'type': 'integer'}})
     def get_reactions_summary(self, obj):
         """Returns a dict of reaction counts, e.g., {'👍': 3, '❤️': 1}"""
         summary = obj.reactions.values('reaction').annotate(count=Count('id'))
@@ -60,6 +63,7 @@ class ConversationListSerializer(serializers.ModelSerializer):
             'last_message', 'unread_count', 'participants_preview'
         ]
     
+    @extend_schema_field({'type': 'object', 'nullable': True, 'properties': {'content': {'type': 'string'}, 'sender_name': {'type': 'string'}, 'created_at': {'type': 'string', 'format': 'date-time'}}})
     def get_last_message(self, obj):
         last = obj.messages.order_by('-created_at').first()
         if last:
@@ -70,6 +74,7 @@ class ConversationListSerializer(serializers.ModelSerializer):
             }
         return None
     
+    @extend_schema_field(OpenApiTypes.INT)
     def get_unread_count(self, obj):
         user = self.context.get('request').user
         participant = obj.participants.filter(user=user).first()
@@ -77,6 +82,7 @@ class ConversationListSerializer(serializers.ModelSerializer):
             return obj.messages.filter(created_at__gt=participant.last_read_at).exclude(sender=user).count()
         return 0
     
+    @extend_schema_field({'type': 'array', 'items': {'type': 'object'}})
     def get_participants_preview(self, obj):
         # Return first 3 participants (excluding current user for direct chats)
         user = self.context.get('request').user

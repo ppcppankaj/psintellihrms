@@ -5,19 +5,28 @@ Notification Serializers
 from rest_framework import serializers
 from .models import Notification, NotificationTemplate, NotificationPreference
 
+
 class NotificationTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationTemplate
-        fields = '__all__'
-        read_only_fields = ['organization', 'created_at', 'updated_at']
+        fields = [
+            'id', 'organization', 'name', 'code', 'subject', 'body',
+            'channel', 'variables', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
+
 
 class NotificationSerializer(serializers.ModelSerializer):
     template_details = NotificationTemplateSerializer(source='template', read_only=True)
     
     class Meta:
         model = Notification
-        fields = '__all__'
-        read_only_fields = ['user', 'created_at', 'read_at', 'organization']
+        fields = [
+            'id', 'organization', 'recipient', 'template', 'template_details',
+            'channel', 'subject', 'body', 'status', 'sent_at', 'read_at',
+            'entity_type', 'entity_id', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'read_at']
 
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
@@ -25,14 +34,14 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPreference
         fields = [
-            'id',
+            'id', 'organization', 'user',
             'email_enabled', 'push_enabled', 'sms_enabled',
             'leave_notifications', 'attendance_notifications',
             'payroll_notifications', 'task_notifications', 'announcement_notifications',
             'quiet_hours_enabled', 'quiet_hours_start', 'quiet_hours_end',
-            'created_at', 'updated_at'
+            'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
 
 class PushNotificationSerializer(serializers.Serializer):

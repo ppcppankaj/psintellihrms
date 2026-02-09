@@ -1,0 +1,87 @@
+name: API Contract Validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**/serializers.py'
+      - 'apps/**/views.py'
+      - 'apps/**/urls.py'
+      - 'config/**'
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  validate-openapi:
+    name: Validate OpenAPI Contract
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements/base.txt
+          pip install pyyaml openapi-spec-validator
+
+      - name: Generate current OpenAPI schema
+        env:
+          SECRET_KEY: 'ci-test-key-not-for-production'
+          POSTGRES_PASSWORD: 'ci-test'
+          FIELD_ENCRYPTION_KEY: ${{ secrets.FIELD_ENCRYPTION_KEY }}
+          DJANGO_SETTINGS_MODULE: 'config.settings.development'
+        run: |
+          python manage.py spectacular --file openapi_current.yaml
+
+      - name: Validate OpenAPI schema
+        run: |
+          python -c "from openapi_spec_validator import validate; validate(open('openapi_current.yaml').read())"
+
+      - name: Check for breaking changes
+        run: |
+          python scripts/diff_openapi.py \
+            --baseline api-contracts/v1/baseline.yaml \
+            --current openapi_current.yaml \
+            --strict
+
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema-${{ github.sha }}
+          path: openapi_current.yaml
+          retention-days: 90
+
+  lint-serializers:
+    name: Lint Serializers
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check for __all__ usage
+        run: |
+          python scripts/lint_serializers.py --path apps/
+
+      - name: Verify explicit field lists
+        run: |
+          if grep -r "fields = '__all__'" apps/*/serializers.py; then
+            echo "ERROR: Found 'fields = __all__' in serializers"
+            exit 1
+          fi
+          echo "✓ No __all__ violations found"
