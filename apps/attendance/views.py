@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
+from django.db.models.functions import ExtractMonth
 from datetime import timedelta
 import pytz
 
@@ -129,11 +130,21 @@ class BranchFilterMixin:
         """Get list of branch IDs the current user can access."""
         if self.request.user.is_superuser:
             return None  # Superuser can access all
+
+        if hasattr(self.request, "_cached_attendance_branch_ids"):
+            return self.request._cached_attendance_branch_ids
+
         from apps.authentication.models_hierarchy import BranchUser
-        return list(BranchUser.objects.filter(
+        branch_ids = list(BranchUser.objects.filter(
             user=self.request.user,
             is_active=True
         ).values_list('branch_id', flat=True))
+
+        if not branch_ids and hasattr(self.request.user, "employee") and self.request.user.employee and self.request.user.employee.branch_id:
+            branch_ids = [self.request.user.employee.branch_id]
+
+        self.request._cached_attendance_branch_ids = branch_ids
+        return branch_ids
 
 
 class AttendanceViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.ModelViewSet):
@@ -613,38 +624,41 @@ class AttendanceViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Mo
             date__gte=start_date,
             date__lte=end_date
         )
-        
-        from apps.employees.models import Employee
-        employee_ids = queryset.values_list('employee_id', flat=True).distinct()
-        employees = Employee.objects.filter(id__in=employee_ids).select_related('user', 'department')
-        
+
+        aggregates = queryset.values(
+            "employee_id",
+            "employee__employee_id",
+            "employee__user__first_name",
+            "employee__user__last_name",
+            "employee__department__name",
+        ).annotate(
+            present_days=Count("id", filter=Q(status="present")),
+            absent_days=Count("id", filter=Q(status="absent")),
+            late_days=Count("id", filter=Q(status="late")),
+            half_days=Count("id", filter=Q(status="half_day")),
+            leave_days=Count("id", filter=Q(status="on_leave")),
+            wfh_days=Count("id", filter=Q(status="wfh")),
+            total_hours=Sum("total_hours"),
+            overtime_hours=Sum("overtime_hours"),
+        ).order_by("employee__employee_id")
+
         report_data = []
-        for emp in employees:
-            emp_records = queryset.filter(employee=emp)
-            summary = emp_records.aggregate(
-                present_days=Count('id', filter=Q(status='present')),
-                absent_days=Count('id', filter=Q(status='absent')),
-                late_days=Count('id', filter=Q(status='late')),
-                half_days=Count('id', filter=Q(status='half_day')),
-                leave_days=Count('id', filter=Q(status='on_leave')),
-                wfh_days=Count('id', filter=Q(status='wfh')),
-                total_hours=Sum('total_hours'),
-                overtime_hours=Sum('overtime_hours'),
-            )
-            
+        for row in aggregates:
+            first_name = row["employee__user__first_name"] or ""
+            last_name = row["employee__user__last_name"] or ""
             report_data.append({
-                'employee_id': emp.employee_id,
-                'employee_name': emp.user.full_name,
-                'department': emp.department.name if emp.department else None,
-                'total_days': last_day,
-                'present_days': summary['present_days'] or 0,
-                'absent_days': summary['absent_days'] or 0,
-                'late_days': summary['late_days'] or 0,
-                'half_days': summary['half_days'] or 0,
-                'leave_days': summary['leave_days'] or 0,
-                'wfh_days': summary['wfh_days'] or 0,
-                'total_hours': summary['total_hours'] or 0,
-                'overtime_hours': summary['overtime_hours'] or 0,
+                "employee_id": row["employee__employee_id"],
+                "employee_name": f"{first_name} {last_name}".strip(),
+                "department": row["employee__department__name"],
+                "total_days": last_day,
+                "present_days": row["present_days"] or 0,
+                "absent_days": row["absent_days"] or 0,
+                "late_days": row["late_days"] or 0,
+                "half_days": row["half_days"] or 0,
+                "leave_days": row["leave_days"] or 0,
+                "wfh_days": row["wfh_days"] or 0,
+                "total_hours": row["total_hours"] or 0,
+                "overtime_hours": row["overtime_hours"] or 0,
             })
         
         export_format = request.query_params.get('format', 'json')
@@ -686,44 +700,66 @@ class AttendanceViewSet(BranchFilterMixin, OrganizationViewSetMixin, viewsets.Mo
             date__gte=start_date,
             date__lte=end_date
         )
-        
-        from apps.employees.models import Employee
-        employee_ids = queryset.values_list('employee_id', flat=True).distinct()
-        employees = Employee.objects.filter(id__in=employee_ids).select_related('user', 'department')
-        
-        report_data = []
-        for emp in employees:
-            emp_records = queryset.filter(employee=emp)
-            months_data = []
-            
-            for month in range(1, 13):
-                _, last_day = calendar.monthrange(year, month)
-                month_start = date(year, month, 1)
-                month_end = date(year, month, last_day)
-                
-                month_records = emp_records.filter(date__gte=month_start, date__lte=month_end)
-                summary = month_records.aggregate(
-                    present_days=Count('id', filter=Q(status='present')),
-                    absent_days=Count('id', filter=Q(status='absent')),
-                    total_hours=Sum('total_hours'),
-                    overtime_hours=Sum('overtime_hours'),
-                )
-                
-                months_data.append({
-                    'month': month,
-                    'month_name': calendar.month_abbr[month],
-                    'present_days': summary['present_days'] or 0,
-                    'absent_days': summary['absent_days'] or 0,
-                    'total_hours': float(summary['total_hours'] or 0),
-                    'overtime_hours': float(summary['overtime_hours'] or 0),
-                })
-            
-            report_data.append({
-                'employee_id': emp.employee_id,
-                'employee_name': emp.user.full_name,
-                'department': emp.department.name if emp.department else None,
-                'months': months_data,
-            })
+
+        monthly_rows = queryset.annotate(
+            month=ExtractMonth("date")
+        ).values(
+            "employee_id",
+            "employee__employee_id",
+            "employee__user__first_name",
+            "employee__user__last_name",
+            "employee__department__name",
+            "month",
+        ).annotate(
+            present_days=Count("id", filter=Q(status="present")),
+            absent_days=Count("id", filter=Q(status="absent")),
+            total_hours=Sum("total_hours"),
+            overtime_hours=Sum("overtime_hours"),
+        ).order_by("employee__employee_id", "month")
+
+        employee_map = {}
+        for row in monthly_rows:
+            emp_id = row["employee_id"]
+            if emp_id not in employee_map:
+                first_name = row["employee__user__first_name"] or ""
+                last_name = row["employee__user__last_name"] or ""
+                employee_map[emp_id] = {
+                    "employee_id": row["employee__employee_id"],
+                    "employee_name": f"{first_name} {last_name}".strip(),
+                    "department": row["employee__department__name"],
+                    "months": {
+                        month: {
+                            "month": month,
+                            "month_name": calendar.month_abbr[month],
+                            "present_days": 0,
+                            "absent_days": 0,
+                            "total_hours": 0.0,
+                            "overtime_hours": 0.0,
+                        }
+                        for month in range(1, 13)
+                    },
+                }
+
+            month = int(row["month"] or 0)
+            if 1 <= month <= 12:
+                employee_map[emp_id]["months"][month] = {
+                    "month": month,
+                    "month_name": calendar.month_abbr[month],
+                    "present_days": row["present_days"] or 0,
+                    "absent_days": row["absent_days"] or 0,
+                    "total_hours": float(row["total_hours"] or 0),
+                    "overtime_hours": float(row["overtime_hours"] or 0),
+                }
+
+        report_data = [
+            {
+                "employee_id": payload["employee_id"],
+                "employee_name": payload["employee_name"],
+                "department": payload["department"],
+                "months": [payload["months"][month] for month in range(1, 13)],
+            }
+            for payload in employee_map.values()
+        ]
         
         export_format = request.query_params.get('format', 'json')
         if export_format == 'csv':

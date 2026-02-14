@@ -171,6 +171,8 @@ class AttendanceRecord(OrganizationEntity):
         indexes = [
             models.Index(fields=['employee', 'date']),
             models.Index(fields=['date', 'status']),
+            models.Index(fields=['organization', 'date'], name='att_org_date_idx'),
+            models.Index(fields=['organization', 'employee', 'date'], name='att_org_emp_date_idx'),
         ]
     
     def __str__(self):
@@ -244,6 +246,9 @@ class AttendancePunch(OrganizationEntity):
     
     class Meta:
         ordering = ['-punch_time']
+        indexes = [
+            models.Index(fields=['organization', 'punch_time'], name='att_punch_org_time_idx'),
+        ]
     
     def __str__(self):
         return f"{self.employee.employee_id} - {self.punch_type} at {self.punch_time}"

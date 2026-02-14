@@ -1,200 +1,167 @@
 """
-Rate Limiting - Per-organization throttling to prevent abuse
+Central DRF throttle classes used across environments.
+
+Rates are controlled from `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`.
 """
 
 from __future__ import annotations
+
+import hashlib
 from typing import Optional
-from rest_framework.throttling import SimpleRateThrottle
-from rest_framework.request import Request
+
 from django.core.cache import cache
+from rest_framework.request import Request
 from rest_framework.throttling import SimpleRateThrottle
+
+
+def _ident(request: Request) -> str:
+    return request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _safe_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
 
 
 class OrganizationRateThrottle(SimpleRateThrottle):
-    """
-    Per-organization rate limiting.
-    """
-    
-    scope = 'organization'
-    rate = '10000/hour'
-    
-    def get_cache_key(self, request: Request, view: Optional[APIView]) -> Optional[str]:
-        org = getattr(request, 'organization', None)
-        if not org:
-            return None
-        
-        return f"throttle:org:{org.id}"
-    
-    def get_rate(self):
-        return self.rate
+    scope = "organization"
+
+    def get_cache_key(self, request: Request, view=None) -> Optional[str]:
+        org = getattr(request, "organization", None)
+        if org:
+            return f"throttle:org:{org.id}"
+        return f"throttle:org:ip:{_ident(request)}"
 
 
 class OrganizationUserRateThrottle(SimpleRateThrottle):
-    """
-    Per-user rate limiting within an organization.
-    """
-    
-    scope = 'org_user'
-    rate = '1000/hour'
-    
-    def get_cache_key(self, request: Request, view: Optional[APIView]) -> Optional[str]:
-        if not request.user.is_authenticated:
+    scope = "org_user"
+
+    def get_cache_key(self, request: Request, view=None) -> Optional[str]:
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
             return None
-        
-        org = getattr(request, 'organization', None)
-        org_id = org.id if org else 'global'
-        
-        return f"throttle:org:{org_id}:user:{request.user.id}"
+        org = getattr(request, "organization", None)
+        org_id = getattr(org, "id", getattr(user, "organization_id", "global"))
+        return f"throttle:org:{org_id}:user:{user.id}"
 
 
 class LoginRateThrottle(SimpleRateThrottle):
-    scope = 'login'
+    scope = "login"
 
-    def get_cache_key(self, request, view):
-        ident = self.get_ident(request)
-        return f'login-throttle:{ident}'
+    def get_cache_key(self, request: Request, view=None) -> str:
+        email = str(request.data.get("email", "")).strip().lower()
+        email_key = _safe_hash(email) if email else "no-email"
+        return f"throttle:login:{_ident(request)}:{email_key}"
 
 
-class AttendancePunchThrottle(SimpleRateThrottle):
-    """
-    Attendance punch throttling.
-    Prevents rapid punch attempts (potential fraud).
-    """
-    
-    scope = 'attendance_punch'
-    rate = '10/minute'  # Max 10 punch attempts per minute
-    
-    def get_cache_key(self, request: Request, view: Optional[APIView]) -> Optional[str]:
-        if not request.user.is_authenticated:
-            return None
-        
-        return f"throttle:punch:{request.user.id}"
+class TwoFactorRateThrottle(SimpleRateThrottle):
+    scope = "two_factor"
+
+    def get_cache_key(self, request: Request, view=None) -> str:
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            return f"throttle:2fa:user:{user.id}"
+        return f"throttle:2fa:ip:{_ident(request)}"
 
 
 class PasswordResetThrottle(SimpleRateThrottle):
-    """
-    Password reset throttling.
-    Prevents email flooding.
-    """
-    
-    scope = 'password_reset'
-    rate = '3/hour'  # 3 reset requests per hour per IP
-    
-    def get_cache_key(self, request: Request, view: Optional[APIView]) -> Optional[str]:
-        ip = self.get_ident(request)
-        return f"throttle:password_reset:{ip}"
+    scope = "password_reset"
+
+    def get_cache_key(self, request: Request, view=None) -> str:
+        email = str(request.data.get("email", "")).strip().lower()
+        email_key = _safe_hash(email) if email else "no-email"
+        return f"throttle:password_reset:{_ident(request)}:{email_key}"
+
+
+class AttendancePunchThrottle(SimpleRateThrottle):
+    scope = "attendance_punch"
+
+    def get_cache_key(self, request: Request, view=None) -> str:
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            return f"throttle:attendance_punch:user:{user.id}"
+        return f"throttle:attendance_punch:ip:{_ident(request)}"
 
 
 class APIKeyRateThrottle(SimpleRateThrottle):
-    """
-    API key rate limiting for external integrations.
-    """
-    
-    scope = 'api_key'
-    
-    def get_cache_key(self, request: Request, view: Optional[APIView]) -> Optional[str]:
-        api_key = request.META.get('HTTP_X_API_KEY')
+    scope = "api_key"
+
+    def get_cache_key(self, request: Request, view=None) -> Optional[str]:
+        api_key = request.META.get("HTTP_X_API_KEY")
         if not api_key:
             return None
-        
-        return f"throttle:api_key:{api_key}"
-    
-    def get_rate(self):
-        """Get rate from API key settings"""
-        # Could look up API key and get its specific rate limit
-        return '1000/hour'
+        return f"throttle:api_key:{_safe_hash(api_key)}"
 
 
 class BurstRateThrottle(SimpleRateThrottle):
-    """
-    Burst rate limiting to prevent rapid-fire requests.
-    """
-    
-    scope = 'burst'
-    rate = '60/minute'  # 60 requests per minute per user
-    
-    def get_cache_key(self, request: Request, view: Optional[APIView]) -> Optional[str]:
-        if request.user.is_authenticated:
-            return f"throttle:burst:user:{request.user.id}"
-        
-        ip = self.get_ident(request)
-        return f"throttle:burst:ip:{ip}"
+    scope = "burst"
+
+    def get_cache_key(self, request: Request, view=None) -> str:
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            return f"throttle:burst:user:{user.id}"
+        return f"throttle:burst:ip:{_ident(request)}"
 
 
 class SustainedRateThrottle(SimpleRateThrottle):
-    """
-    Sustained rate limiting for long-term abuse prevention.
-    """
-    
-    scope = 'sustained'
-    rate = '5000/day'  # 5k requests per day per user
-    
-    def get_cache_key(self, request: Request, view: Optional[APIView]) -> Optional[str]:
-        if request.user.is_authenticated:
-            return f"throttle:sustained:user:{request.user.id}"
-        
-        ip = self.get_ident(request)
-        return f"throttle:sustained:ip:{ip}"
+    scope = "sustained"
+
+    def get_cache_key(self, request: Request, view=None) -> str:
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            return f"throttle:sustained:user:{user.id}"
+        return f"throttle:sustained:ip:{_ident(request)}"
 
 
-class LoginThrottle(SimpleRateThrottle):
-    scope = 'login'
-    THROTTLE_RATES = {'login': '5/hour'}
+class ReportExportThrottle(SimpleRateThrottle):
+    scope = "report_export"
+
+    def get_cache_key(self, request: Request, view=None) -> str:
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            return f"throttle:report_export:user:{user.id}"
+        return f"throttle:report_export:ip:{_ident(request)}"
 
 
-class ExportThrottle(SimpleRateThrottle):
-    scope = 'export'
-    THROTTLE_RATES = {'export': '10/hour'}
+# Backward-compatible aliases
+LoginThrottle = LoginRateThrottle
+ExportThrottle = ReportExportThrottle
 
 
-# =============================================================================
-# THROTTLE UTILITY FUNCTIONS
-# =============================================================================
-
-def is_tenant_rate_limited(organization_id: str) -> bool:
-    """Check if a tenant is currently rate limited"""
+def is_tenant_rate_limited(organization_id: str, threshold: int = 10000) -> bool:
     key = f"throttle:tenant:{organization_id}"
-    return cache.get(key, 0) > 10000  # Threshold
+    return cache.get(key, 0) > threshold
 
 
 def get_tenant_request_count(organization_id: str) -> int:
-    """Get current request count for a tenant"""
-    key = f"throttle:tenant:{organization_id}"
-    return cache.get(key, 0)
+    return cache.get(f"throttle:tenant:{organization_id}", 0)
 
 
-def get_user_request_count(user_id: int) -> int:
-    """Get current request count for a user"""
-    key = f"throttle:burst:user:{user_id}"
-    return cache.get(key, 0)
+def get_user_request_count(user_id: str) -> int:
+    return cache.get(f"throttle:burst:user:{user_id}", 0)
 
 
 def block_ip(ip_address: str, duration_seconds: int = 3600) -> None:
-    """Temporarily block an IP address"""
-    key = f"blocked:ip:{ip_address}"
-    cache.set(key, True, duration_seconds)
+    cache.set(f"blocked:ip:{ip_address}", True, duration_seconds)
 
 
 def is_ip_blocked(ip_address: str) -> bool:
-    """Check if IP is blocked"""
-    key = f"blocked:ip:{ip_address}"
-    return cache.get(key, False)
+    return bool(cache.get(f"blocked:ip:{ip_address}", False))
 
 
 def unblock_ip(ip_address: str) -> None:
-    """Unblock an IP address"""
-    key = f"blocked:ip:{ip_address}"
-    cache.delete(key)
+    cache.delete(f"blocked:ip:{ip_address}")
 
-
-# =============================================================================
-# THROTTLE SETTINGS FOR DIFFERENT ENDPOINTS
-# =============================================================================
 
 THROTTLE_CLASSES_BY_ENDPOINT: dict[str, list[type[SimpleRateThrottle]]] = {
-    'login': [LoginRateThrottle, BurstRateThrottle],
-    'password_reset': [PasswordResetThrottle],
-    'attendance_punch': [AttendancePunchThrottle, OrganizationUserRateThrottle],
-    'api': [OrganizationRateThrottle, OrganizationUserRateThrottle, BurstRateThrottle],
-    'report_export': [OrganizationUserRateThrottle],  # Heavy operations
+    "login": [LoginRateThrottle, BurstRateThrottle],
+    "password_reset": [PasswordResetThrottle, BurstRateThrottle],
+    "two_factor": [TwoFactorRateThrottle, BurstRateThrottle],
+    "attendance_punch": [AttendancePunchThrottle, OrganizationUserRateThrottle],
+    "api": [
+        OrganizationRateThrottle,
+        OrganizationUserRateThrottle,
+        BurstRateThrottle,
+        SustainedRateThrottle,
+    ],
+    "report_export": [ReportExportThrottle, OrganizationUserRateThrottle],
 }

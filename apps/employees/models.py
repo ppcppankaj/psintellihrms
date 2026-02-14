@@ -170,6 +170,11 @@ class Employee(OrganizationEntity, MetadataModel):
             models.Index(fields=['employee_id']),
             models.Index(fields=['department', 'employment_status']),
             models.Index(fields=['reporting_manager']),
+            models.Index(fields=['organization', 'employment_status', 'is_active'], name='emp_org_status_idx'),
+            models.Index(fields=['organization', 'department'], name='emp_org_dept_idx'),
+            models.Index(fields=['organization', 'designation'], name='emp_org_desig_idx'),
+            models.Index(fields=['organization', 'location'], name='emp_org_loc_idx'),
+            models.Index(fields=['organization', 'reporting_manager'], name='emp_org_mgr_idx'),
         ]
     
     def __str__(self):

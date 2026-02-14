@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 import secrets
 import logging
@@ -74,7 +74,38 @@ class EmployeeViewSet(BulkImportExportMixin, OrganizationViewSetMixin, Permissio
         return emp_serializers.EmployeeBulkImportSerializer
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related(
+            "user",
+            "department",
+            "designation",
+            "location",
+            "reporting_manager",
+            "reporting_manager__user",
+        )
+
+        if self.action == "retrieve":
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    "addresses",
+                    queryset=EmployeeAddress.objects.filter(is_deleted=False),
+                ),
+                Prefetch(
+                    "bank_accounts",
+                    queryset=EmployeeBankAccount.objects.filter(is_deleted=False),
+                ),
+                Prefetch(
+                    "skills",
+                    queryset=EmployeeSkill.objects.select_related("skill"),
+                ),
+                Prefetch(
+                    "dependents",
+                    queryset=EmployeeDependent.objects.filter(is_deleted=False),
+                ),
+                Prefetch(
+                    "documents",
+                    queryset=Document.objects.filter(is_deleted=False).select_related("verified_by"),
+                ),
+            )
         
         # Search
         search = self.request.query_params.get('search')
@@ -637,41 +668,29 @@ class DepartmentViewSet(
         return emp_serializers.DepartmentBulkImportSerializer
 
     def get_queryset(self):
-        queryset = Department.objects.filter(is_deleted=False)
-        org = getattr(self.request, 'organization', None)
+        queryset = Department.objects.filter(is_deleted=False).select_related("parent", "head", "head__user").annotate(
+            employee_count=Count("employees", filter=Q(employees__is_active=True, employees__is_deleted=False), distinct=True)
+        )
+        org = getattr(self.request, "organization", None)
         if org:
             queryset = queryset.filter(organization=org)
 
-        parent = self.request.query_params.get('parent')
-        if parent == 'null':
+        parent = self.request.query_params.get("parent")
+        if parent == "null":
             queryset = queryset.filter(parent__isnull=True)
         elif parent:
             queryset = queryset.filter(parent_id=parent)
-
-        return queryset
-
-
-    def get_import_serializer_class(self):
-        return emp_serializers.DepartmentBulkImportSerializer
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        parent = self.request.query_params.get('parent')
-        if parent == 'null':
-            queryset = queryset.filter(parent__isnull=True)
-        elif parent:
-            queryset = queryset.filter(parent_id=parent)
-        
         return queryset
 
     def list(self, request, *args, **kwargs):
-        cache_key = f"departments:{getattr(request, 'tenant', None)}"
+        org_id = getattr(getattr(request, "organization", None), "id", "global")
+        cache_key = f"departments:{org_id}:{request.query_params.get('parent', 'all')}"
         cached = cache.get(cache_key)
         if cached:
             return Response({'success': True, 'data': cached})
         response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data['data'], 3600)
+        if isinstance(response.data, dict) and "data" in response.data:
+            cache.set(cache_key, response.data["data"], 600)
         return response
 
 

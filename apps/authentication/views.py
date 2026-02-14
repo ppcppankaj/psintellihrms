@@ -7,6 +7,7 @@ import pyotp
 import qrcode
 import io
 import base64
+from apps.core.openapi_serializers import EmptySerializer
 from datetime import timedelta
 
 from django.conf import settings
@@ -22,7 +23,14 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from apps.authentication.services.emails import send_password_reset_email
+from apps.core.throttling import (
+    BurstRateThrottle,
+    LoginRateThrottle,
+    PasswordResetThrottle,
+    TwoFactorRateThrottle,
+)
 
+from apps.authentication.authentication import CsrfExemptSessionAuthentication
 from .models import User, UserSession, PasswordResetToken
 from .serializers import (
     CustomTokenObtainPairSerializer,
@@ -37,6 +45,7 @@ from .serializers import (
     TwoFactorVerifySerializer,
     UserSessionSerializer,
 )
+from drf_spectacular.utils import extend_schema
 # from apps.core.org_permissions import IsOrgAdminOrSuperuser
 # from apps.core.tenant_guards import OrganizationViewSetMixin
 
@@ -44,8 +53,6 @@ from .serializers import (
 # =====================================================
 # LOGIN
 # =====================================================
-
-print("[Login Debug] authentication.views loaded", flush=True)
 
 class SimpleUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -56,6 +63,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """
     🔒 SECURITY-HARDENED LOGIN
     """
+    authentication_classes = [CsrfExemptSessionAuthentication]
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle, BurstRateThrottle]
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
@@ -121,6 +131,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = EmptySerializer
 
     def post(self, request):
         refresh_token = request.data.get("refresh_token")
@@ -145,12 +156,14 @@ class LogoutView(APIView):
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserSelfProfileSerializer
 
     def get(self, request):
         serializer = UserSelfProfileSerializer(request.user)
         return Response(serializer.data)
 
 
+@extend_schema(responses=UserSerializer)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
@@ -168,6 +181,7 @@ def user_profile(request):
 
 class PasswordChangeView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = PasswordChangeSerializer
 
     def post(self, request):
         serializer = PasswordChangeSerializer(
@@ -180,7 +194,10 @@ class PasswordChangeView(APIView):
 
 
 class PasswordResetRequestView(APIView):
+    authentication_classes = [CsrfExemptSessionAuthentication]
     permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle, BurstRateThrottle]
+    serializer_class = PasswordResetRequestSerializer
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -190,7 +207,10 @@ class PasswordResetRequestView(APIView):
 
 
 class PasswordResetConfirmView(APIView):
+    authentication_classes = [CsrfExemptSessionAuthentication]
     permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle, BurstRateThrottle]
+    serializer_class = PasswordResetConfirmSerializer
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -205,6 +225,8 @@ class PasswordResetConfirmView(APIView):
 
 class TwoFactorEnableView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [TwoFactorRateThrottle, BurstRateThrottle]
+    serializer_class = TwoFactorEnableSerializer
 
     def post(self, request):
         serializer = TwoFactorEnableSerializer(
@@ -218,6 +240,8 @@ class TwoFactorEnableView(APIView):
 
 class TwoFactorVerifyView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [TwoFactorRateThrottle, BurstRateThrottle]
+    serializer_class = TwoFactorVerifySerializer
 
     def post(self, request):
         serializer = TwoFactorVerifySerializer(
@@ -231,6 +255,8 @@ class TwoFactorVerifyView(APIView):
 
 class TwoFactorDisableView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [TwoFactorRateThrottle, BurstRateThrottle]
+    serializer_class = EmptySerializer
 
     def post(self, request):
         request.user.disable_2fa()
@@ -243,6 +269,7 @@ class TwoFactorDisableView(APIView):
 
 class SessionListView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserSessionSerializer
 
     def get(self, request):
         qs = UserSession.objects.filter(
@@ -319,18 +346,3 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                 )
 
         return super().update(request, *args, **kwargs)
-
-
-class PasswordResetRequestView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        user = get_user_somehow()
-        reset_url = build_reset_url(user)
-
-        send_password_reset_email(user, reset_url)
-
-        return Response(
-            {"detail": "Password reset email sent"},
-            status=200
-        )

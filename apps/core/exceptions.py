@@ -5,11 +5,13 @@ Custom Exception Handler for DRF
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, PermissionDenied, Throttled
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 import logging
 
 logger = logging.getLogger(__name__)
+security_logger = logging.getLogger("security.audit")
 
 
 def custom_exception_handler(exc, context):
@@ -20,6 +22,7 @@ def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
     
     if response is not None:
+        _log_security_event(exc, context, response.status_code)
         # Customize the response format
         custom_response_data = {
             'success': False,
@@ -75,6 +78,38 @@ def custom_exception_handler(exc, context):
             }
         },
         status=status.HTTP_500_INTERNAL_SERVER_ERROR
+    )
+
+
+def _log_security_event(exc, context, status_code):
+    if status_code not in (401, 403, 429):
+        return
+
+    request = context.get("request")
+    if request is None:
+        return
+
+    user = getattr(request, "user", None)
+    user_id = getattr(user, "id", None) if user and getattr(user, "is_authenticated", False) else None
+    exc_name = exc.__class__.__name__
+    if isinstance(exc, (AuthenticationFailed, NotAuthenticated)):
+        event_type = "auth_failed"
+    elif isinstance(exc, PermissionDenied):
+        event_type = "permission_denied"
+    elif isinstance(exc, Throttled):
+        event_type = "throttled"
+    else:
+        event_type = "security_event"
+
+    security_logger.warning(
+        "api_security_event type=%s status=%s method=%s path=%s user_id=%s ip=%s error=%s",
+        event_type,
+        status_code,
+        request.method,
+        request.path,
+        user_id,
+        request.META.get("REMOTE_ADDR"),
+        exc_name,
     )
 
 

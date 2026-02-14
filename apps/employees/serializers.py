@@ -34,7 +34,9 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_employee_count(self, obj):
-        return obj.employees.filter(is_active=True).count()
+        if hasattr(obj, "employee_count"):
+            return obj.employee_count
+        return obj.employees.filter(is_active=True, is_deleted=False).count()
 
 
 class DesignationSerializer(serializers.ModelSerializer):

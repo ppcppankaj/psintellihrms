@@ -98,3 +98,14 @@ class OrganizationAwareJWTAuthentication(JWTAuthentication):
         (no DB / header override allowed)
         """
         request.jwt_role_ids = token.get('role_ids', [])
+
+
+from rest_framework.authentication import SessionAuthentication
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """
+    Disable CSRF checks ONLY for API views that explicitly use this.
+    Admin panel remains protected.
+    """
+    def enforce_csrf(self, request):
+        return

@@ -91,6 +91,11 @@ class ReportExecution(OrganizationEntity):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['organization', 'status', 'created_at'], name='rpt_exec_org_status_idx'),
+            models.Index(fields=['requested_by', 'status', 'created_at'], name='rpt_exec_user_status_idx'),
+            models.Index(fields=['template', 'status', 'created_at'], name='rpt_exec_tpl_status_idx'),
+        ]
 
     def __str__(self):
         return f"Execution {self.id} - {self.status}"

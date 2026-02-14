@@ -14,11 +14,13 @@ from django.db import models
 from django.db.models import Count, Avg, Sum, Q
 from django.utils import timezone
 from django.http import FileResponse
+from apps.core.openapi_serializers import EmptySerializer
 
 from apps.employees.models import Employee, Department
 from apps.recruitment.models import JobPosting, JobApplication
 from apps.payroll.models import PayrollRun, Payslip
 from apps.core.permissions_branch import BranchPermission, OrganizationFilterBackend
+from apps.core.throttling import ReportExportThrottle
 from .models import ReportTemplate, ScheduledReport, GeneratedReport, ReportExecution
 from .serializers import (
     ReportTemplateSerializer,
@@ -35,18 +37,29 @@ class ReportViewSet(viewsets.ViewSet):
     All reports are filtered by user's organization/branch access.
     """
     permission_classes = [IsAuthenticated, BranchPermission]
+    serializer_class = EmptySerializer
     
     def _get_branch_filter(self, request):
         """Get branch IDs for filtering"""
         if request.user.is_superuser:
             return None  # No filter for superuser
-        
+
+        if hasattr(request, "_cached_branch_ids"):
+            return request._cached_branch_ids
+
         from apps.authentication.models_hierarchy import BranchUser
-        branch_ids = list(BranchUser.objects.filter(
-            user=request.user,
-            is_active=True
-        ).values_list('branch_id', flat=True))
-        
+
+        branch_ids = list(
+            BranchUser.objects.filter(
+                user=request.user,
+                is_active=True
+            ).values_list("branch_id", flat=True)
+        )
+
+        if not branch_ids and hasattr(request.user, "employee") and request.user.employee and request.user.employee.branch_id:
+            branch_ids = [request.user.employee.branch_id]
+
+        request._cached_branch_ids = branch_ids
         return branch_ids
     
     def _get_org_filter(self, request):
@@ -66,6 +79,8 @@ class ReportViewSet(viewsets.ViewSet):
         
         # Build employee filter
         emp_filter = Q(employment_status='active')
+        if org:
+            emp_filter &= Q(organization=org)
         if branch_ids is not None:
             if not branch_ids:
                 return Response({
@@ -86,17 +101,23 @@ class ReportViewSet(viewsets.ViewSet):
         
         # Recruitment stats
         job_filter = Q(status='open')
+        if org:
+            job_filter &= Q(organization=org)
         if branch_ids is not None:
             job_filter &= Q(branch_id__in=branch_ids)
-        
+
         open_jobs = JobPosting.objects.filter(job_filter).count()
-        new_apps = JobApplication.objects.filter(
-            stage='new',
-            job__branch_id__in=branch_ids if branch_ids else []
-        ).count() if branch_ids else 0
-        
+        app_filter = Q(stage="new")
+        if org:
+            app_filter &= Q(organization=org)
+        if branch_ids is not None:
+            app_filter &= Q(job__branch_id__in=branch_ids)
+        new_apps = JobApplication.objects.filter(app_filter).count()
+
         # Payroll stats
         payroll_filter = Q(status='paid')
+        if org:
+            payroll_filter &= Q(organization=org)
         if branch_ids is not None:
             payroll_filter &= Q(branch_id__in=branch_ids)
         
@@ -155,42 +176,56 @@ class ReportViewSet(viewsets.ViewSet):
         # Get leave types for org
         if not org:
             return Response([])
-        leave_types = LeaveType.objects.filter(organization=org)
-        
+        # Single grouped aggregation instead of N queries per leave type.
+        base_qs = LeaveBalance.objects.filter(organization=org).values(
+            "leave_type_id",
+            "leave_type__name",
+        )
+        if branch_ids is not None:
+            base_qs = base_qs.filter(employee__branch_id__in=branch_ids)
+
+        aggregates = base_qs.annotate(
+            total_taken=Sum("taken"),
+            total_accrued=Sum("accrued"),
+            total_opening=Sum("opening_balance"),
+            total_cf=Sum("carry_forward"),
+            total_adj=Sum("adjustment"),
+        )
+
         result = []
-        for lt in leave_types:
-            # Build filter for balances
-            balance_filter = Q(leave_type=lt)
-            if branch_ids is not None:
-                balance_filter &= Q(employee__branch_id__in=branch_ids)
-            
-            # Aggregate balances for this type
-            agg = LeaveBalance.objects.filter(balance_filter).aggregate(
-                total_taken=Sum('taken'),
-                total_accrued=Sum('accrued'),
-                total_opening=Sum('opening_balance'),
-                total_cf=Sum('carry_forward'),
-                total_adj=Sum('adjustment')
-            )
-            
-            taken = agg['total_taken'] or 0
+        aggregated_ids = set()
+        for row in aggregates:
+            aggregated_ids.add(row["leave_type_id"])
+            taken = row["total_taken"] or 0
             total_credits = (
-                (agg['total_opening'] or 0) + 
-                (agg['total_accrued'] or 0) + 
-                (agg['total_cf'] or 0) + 
-                (agg['total_adj'] or 0)
+                (row["total_opening"] or 0)
+                + (row["total_accrued"] or 0)
+                + (row["total_cf"] or 0)
+                + (row["total_adj"] or 0)
             )
-            
-            balance = total_credits - taken 
+            balance = total_credits - taken
             utilization = (taken / total_credits * 100) if total_credits > 0 else 0
-            
-            result.append({
-                'leave_type': lt.name,
-                'total_taken': float(taken),
-                'total_balance': float(balance),
-                'utilization_percent': round(float(utilization), 1)
-            })
-            
+            result.append(
+                {
+                    "leave_type": row["leave_type__name"],
+                    "total_taken": float(taken),
+                    "total_balance": float(balance),
+                    "utilization_percent": round(float(utilization), 1),
+                }
+            )
+
+        # Keep zero rows for leave types that currently have no balances.
+        zero_type_names = LeaveType.objects.filter(organization=org).exclude(id__in=aggregated_ids).values_list("name", flat=True)
+        for name in zero_type_names:
+            result.append(
+                {
+                    "leave_type": name,
+                    "total_taken": 0.0,
+                    "total_balance": 0.0,
+                    "utilization_percent": 0.0,
+                }
+            )
+
         return Response(result)
 
     @action(detail=False, methods=['get'])
@@ -200,6 +235,7 @@ class ReportViewSet(viewsets.ViewSet):
         Filtered by user's branch access.
         """
         branch_ids = self._get_branch_filter(request)
+        org = self._get_org_filter(request)
         
         # Calculate attrition for accessible branches
         from datetime import timedelta
@@ -207,8 +243,10 @@ class ReportViewSet(viewsets.ViewSet):
         one_year_ago = timezone.now() - timedelta(days=365)
         
         base_filter = Q()
+        if org:
+            base_filter &= Q(organization=org)
         if branch_ids is not None:
-            base_filter = Q(branch_id__in=branch_ids)
+            base_filter &= Q(branch_id__in=branch_ids)
         
         # Employees at start of period
         start_count = Employee.objects.filter(
@@ -234,10 +272,13 @@ class ReportViewSet(viewsets.ViewSet):
         Filtered by user's branch access.
         """
         branch_ids = self._get_branch_filter(request)
-        
+        org = self._get_org_filter(request)
+
         emp_filter = Q()
+        if org:
+            emp_filter &= Q(organization=org)
         if branch_ids is not None:
-            emp_filter = Q(branch_id__in=branch_ids)
+            emp_filter &= Q(branch_id__in=branch_ids)
         
         stats = Employee.objects.filter(emp_filter).values(
             'department__name', 'gender'
@@ -339,6 +380,8 @@ class ReportExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 class ReportExecuteView(APIView):
     """Execute a report and persist ReportExecution"""
     permission_classes = [IsAuthenticated, BranchPermission]
+    throttle_classes = [ReportExportThrottle]
+    serializer_class = ReportExecuteRequestSerializer
 
     def post(self, request, *args, **kwargs):
         serializer = ReportExecuteRequestSerializer(data=request.data)
@@ -374,6 +417,8 @@ class ReportExecuteView(APIView):
 class ReportExportView(APIView):
     """Execute and immediately return file response"""
     permission_classes = [IsAuthenticated, BranchPermission]
+    throttle_classes = [ReportExportThrottle]
+    serializer_class = ReportExecuteRequestSerializer
 
     def post(self, request, *args, **kwargs):
         serializer = ReportExecuteRequestSerializer(data=request.data)
@@ -401,4 +446,3 @@ class ReportExportView(APIView):
 
         response = FileResponse(execution.file.open('rb'), as_attachment=True)
         return response
-
